@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { FileText, DollarSign, Lock, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
+import InvoicePrintButton from '@/components/shipments/InvoicePrintButton';
 import type { Box, Invoice, InvoiceLineItem, Payment, PaymentMethod } from '@/types/shipping';
 
 interface InvoiceSectionProps {
@@ -230,6 +231,7 @@ const InvoiceSection = ({ shipmentId, boxes }: InvoiceSectionProps) => {
         <div className="flex items-center gap-2">
           <Badge variant={paymentStatusVariant(invoice.payment_status)}>{invoice.payment_status}</Badge>
           {invoice.is_finalized && <Badge variant="outline"><Lock className="h-3 w-3 mr-1" /> Locked</Badge>}
+          <InvoicePrintButton shipmentId={shipmentId} />
         </div>
       </div>
 
