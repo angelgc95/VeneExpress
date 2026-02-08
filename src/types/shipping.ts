@@ -37,6 +37,7 @@ export interface Shipment {
   service_type: ServiceType;
   currency: string;
   status: ShipmentStatus;
+  public_tracking_code: string | null;
   created_at: string;
   updated_at: string;
   customers?: Customer;

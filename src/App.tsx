@@ -15,6 +15,7 @@ import ShipmentDetail from "./pages/ShipmentDetail";
 import ScanPage from "./pages/ScanPage";
 import Settings from "./pages/Settings";
 import TrackingPublic from "./pages/TrackingPublic";
+import UserApprovals from "./pages/UserApprovals";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,7 +35,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/track/:shipmentId" element={<TrackingPublic />} />
+            <Route path="/track/:trackingCode" element={<TrackingPublic />} />
             <Route path="/track" element={<TrackingPublic />} />
             <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
             <Route path="/customers" element={<ProtectedLayout><Customers /></ProtectedLayout>} />
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/shipments/new" element={<ProtectedLayout><CreateShipment /></ProtectedLayout>} />
             <Route path="/shipments/:id" element={<ProtectedLayout><ShipmentDetail /></ProtectedLayout>} />
             <Route path="/scan" element={<ProtectedLayout><ScanPage /></ProtectedLayout>} />
+            <Route path="/admin/approvals" element={<ProtectedLayout><UserApprovals /></ProtectedLayout>} />
             <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

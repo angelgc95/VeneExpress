@@ -53,6 +53,18 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_allowlist: {
+        Row: {
+          email: string
+        }
+        Insert: {
+          email: string
+        }
+        Update: {
+          email?: string
+        }
+        Relationships: []
+      }
       boxes: {
         Row: {
           applied_rate: number | null
@@ -383,18 +395,21 @@ export type Database = {
       }
       profiles: {
         Row: {
+          approved: boolean
           created_at: string
           full_name: string | null
           id: string
           user_id: string
         }
         Insert: {
+          approved?: boolean
           created_at?: string
           full_name?: string | null
           id?: string
           user_id: string
         }
         Update: {
+          approved?: boolean
           created_at?: string
           full_name?: string | null
           id?: string
@@ -423,6 +438,7 @@ export type Database = {
           currency: string
           customer_id: string
           id: string
+          public_tracking_code: string | null
           receiver_address_id: string | null
           sender_address_id: string | null
           service_type: Database["public"]["Enums"]["service_type"]
@@ -435,6 +451,7 @@ export type Database = {
           currency?: string
           customer_id: string
           id?: string
+          public_tracking_code?: string | null
           receiver_address_id?: string | null
           sender_address_id?: string | null
           service_type?: Database["public"]["Enums"]["service_type"]
@@ -447,6 +464,7 @@ export type Database = {
           currency?: string
           customer_id?: string
           id?: string
+          public_tracking_code?: string | null
           receiver_address_id?: string | null
           sender_address_id?: string | null
           service_type?: Database["public"]["Enums"]["service_type"]
