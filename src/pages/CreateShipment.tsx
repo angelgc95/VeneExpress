@@ -20,6 +20,48 @@ const emptyAddress = (country = 'US'): AddressForm => ({
   name: '', phone: '', line1: '', line2: '', city: '', state: '', postal_code: '', country
 });
 
+const AddressFormFields = ({ addr, setAddr, label }: { addr: AddressForm; setAddr: (a: AddressForm) => void; label: string }) => (
+  <div className="space-y-4">
+    <h3 className="font-heading font-semibold">{label}</h3>
+    <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Label>Contact Name *</Label>
+        <Input value={addr.name} onChange={(e) => setAddr({ ...addr, name: e.target.value })} required />
+      </div>
+      <div className="space-y-2">
+        <Label>Phone</Label>
+        <Input value={addr.phone} onChange={(e) => setAddr({ ...addr, phone: e.target.value })} />
+      </div>
+    </div>
+    <div className="space-y-2">
+      <Label>Address Line 1 *</Label>
+      <Input value={addr.line1} onChange={(e) => setAddr({ ...addr, line1: e.target.value })} required />
+    </div>
+    <div className="space-y-2">
+      <Label>Address Line 2</Label>
+      <Input value={addr.line2} onChange={(e) => setAddr({ ...addr, line2: e.target.value })} />
+    </div>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="space-y-2">
+        <Label>City *</Label>
+        <Input value={addr.city} onChange={(e) => setAddr({ ...addr, city: e.target.value })} required />
+      </div>
+      <div className="space-y-2">
+        <Label>State</Label>
+        <Input value={addr.state} onChange={(e) => setAddr({ ...addr, state: e.target.value })} />
+      </div>
+      <div className="space-y-2">
+        <Label>Postal Code</Label>
+        <Input value={addr.postal_code} onChange={(e) => setAddr({ ...addr, postal_code: e.target.value })} />
+      </div>
+      <div className="space-y-2">
+        <Label>Country</Label>
+        <Input value={addr.country} onChange={(e) => setAddr({ ...addr, country: e.target.value })} />
+      </div>
+    </div>
+  </div>
+);
+
 const CreateShipment = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -90,47 +132,7 @@ const CreateShipment = () => {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const AddressFormFields = ({ addr, setAddr, label }: { addr: AddressForm; setAddr: (a: AddressForm) => void; label: string }) => (
-    <div className="space-y-4">
-      <h3 className="font-heading font-semibold">{label}</h3>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Contact Name *</Label>
-          <Input value={addr.name} onChange={(e) => setAddr({ ...addr, name: e.target.value })} required />
-        </div>
-        <div className="space-y-2">
-          <Label>Phone</Label>
-          <Input value={addr.phone} onChange={(e) => setAddr({ ...addr, phone: e.target.value })} />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label>Address Line 1 *</Label>
-        <Input value={addr.line1} onChange={(e) => setAddr({ ...addr, line1: e.target.value })} required />
-      </div>
-      <div className="space-y-2">
-        <Label>Address Line 2</Label>
-        <Input value={addr.line2} onChange={(e) => setAddr({ ...addr, line2: e.target.value })} />
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="space-y-2">
-          <Label>City *</Label>
-          <Input value={addr.city} onChange={(e) => setAddr({ ...addr, city: e.target.value })} required />
-        </div>
-        <div className="space-y-2">
-          <Label>State</Label>
-          <Input value={addr.state} onChange={(e) => setAddr({ ...addr, state: e.target.value })} />
-        </div>
-        <div className="space-y-2">
-          <Label>Postal Code</Label>
-          <Input value={addr.postal_code} onChange={(e) => setAddr({ ...addr, postal_code: e.target.value })} />
-        </div>
-        <div className="space-y-2">
-          <Label>Country</Label>
-          <Input value={addr.country} onChange={(e) => setAddr({ ...addr, country: e.target.value })} />
-        </div>
-      </div>
-    </div>
-  );
+  // AddressFormFields is defined outside this component to prevent re-mounting on every render
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
