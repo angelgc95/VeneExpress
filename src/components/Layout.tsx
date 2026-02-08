@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard, Package, Users, ScanLine, Settings, LogOut,
-  Anchor, Menu
+  Anchor, Menu, ShieldCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +16,7 @@ const navItems = [
 ];
 
 const adminNavItems = [
+  { label: 'Approvals', icon: ShieldCheck, path: '/admin/approvals' },
   { label: 'Settings', icon: Settings, path: '/settings' },
 ];
 
