@@ -1,114 +1,89 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Package, Warehouse, Ship, CheckCircle, Search, Plus } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Search, Package } from 'lucide-react';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
 import type { Shipment, ShipmentStatus } from '@/types/shipping';
 
 const statusVariant = (status: ShipmentStatus) => {
   const map: Record<ShipmentStatus, 'secondary' | 'warning' | 'info' | 'default' | 'success'> = {
-    'Created': 'secondary',
-    'In Warehouse': 'warning',
-    'Paid': 'info',
-    'Shipped': 'default',
-    'Delivered': 'success',
+    'Created': 'secondary', 'In Warehouse': 'warning', 'Paid': 'info', 'Shipped': 'default', 'Delivered': 'success',
   };
   return map[status] ?? 'outline';
 };
 
-const Dashboard = () => {
+const Shipments = () => {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const { data: shipments = [] } = useQuery({
-    queryKey: ['shipments-dashboard'],
+    queryKey: ['shipments'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('shipments')
         .select('*, customers(first_name, last_name)')
-        .order('created_at', { ascending: false })
-        .limit(20);
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return data as (Shipment & { customers: { first_name: string; last_name: string } })[];
     },
   });
 
-  const counts = shipments.reduce((acc: Record<string, number>, s) => {
-    acc[s.status] = (acc[s.status] || 0) + 1;
-    return acc;
-  }, {});
-
-  const kpis = [
-    { label: 'Created', count: counts['Created'] || 0, icon: Package, color: 'text-muted-foreground bg-muted' },
-    { label: 'In Warehouse', count: counts['In Warehouse'] || 0, icon: Warehouse, color: 'text-warning bg-warning/10' },
-    { label: 'Shipped', count: counts['Shipped'] || 0, icon: Ship, color: 'text-info bg-info/10' },
-    { label: 'Delivered', count: counts['Delivered'] || 0, icon: CheckCircle, color: 'text-success bg-success/10' },
-  ];
-
-  const handleSearch = () => {
-    if (!searchQuery.trim()) return;
-    navigate(`/shipments?search=${encodeURIComponent(searchQuery.trim())}`);
-  };
+  const filtered = shipments.filter((s) => {
+    const q = search.toLowerCase();
+    const matchSearch = !q
+      || s.shipment_id.toLowerCase().includes(q)
+      || `${s.customers?.first_name} ${s.customers?.last_name}`.toLowerCase().includes(q);
+    const matchStatus = statusFilter === 'all' || s.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold font-heading">Dashboard</h1>
-          <p className="text-muted-foreground text-sm">Overview of your shipping operations</p>
+          <h1 className="text-2xl font-bold font-heading">Shipments</h1>
+          <p className="text-muted-foreground text-sm">{shipments.length} total shipments</p>
         </div>
         <Button onClick={() => navigate('/shipments/new')} className="bg-accent text-accent-foreground hover:bg-accent/90">
           <Plus className="h-4 w-4 mr-2" /> New Shipment
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((kpi) => (
-          <Card key={kpi.label} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className={cn("p-2.5 rounded-xl", kpi.color)}>
-                <kpi.icon className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold font-heading">{kpi.count}</p>
-                <p className="text-xs text-muted-foreground">{kpi.label}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-heading">Quick Search</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by Shipment ID, Box ID, or customer phone..."
+                placeholder="Search by ID or customer..."
                 className="pl-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <Button variant="outline" onClick={handleSearch}>Search</Button>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="Created">Created</SelectItem>
+                <SelectItem value="In Warehouse">In Warehouse</SelectItem>
+                <SelectItem value="Paid">Paid</SelectItem>
+                <SelectItem value="Shipped">Shipped</SelectItem>
+                <SelectItem value="Delivered">Delivered</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-heading">Recent Shipments</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -118,11 +93,11 @@ const Dashboard = () => {
                 <TableHead>Customer</TableHead>
                 <TableHead>Service</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="hidden md:table-cell">Date</TableHead>
+                <TableHead className="hidden md:table-cell">Created</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {shipments.slice(0, 10).map((s) => (
+              {filtered.map((s) => (
                 <TableRow
                   key={s.id}
                   className="cursor-pointer hover:bg-muted/50"
@@ -131,9 +106,7 @@ const Dashboard = () => {
                   <TableCell className="font-mono-id font-medium text-sm">{s.shipment_id}</TableCell>
                   <TableCell>{s.customers?.first_name} {s.customers?.last_name}</TableCell>
                   <TableCell>
-                    <Badge variant={s.service_type === 'AIR' ? 'info' : 'secondary'}>
-                      {s.service_type}
-                    </Badge>
+                    <Badge variant={s.service_type === 'AIR' ? 'info' : 'secondary'}>{s.service_type}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusVariant(s.status)}>{s.status}</Badge>
@@ -143,10 +116,11 @@ const Dashboard = () => {
                   </TableCell>
                 </TableRow>
               ))}
-              {shipments.length === 0 && (
+              {filtered.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-12">
-                    No shipments yet. Create your first one!
+                    <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    {search || statusFilter !== 'all' ? 'No shipments match your filters' : 'No shipments yet'}
                   </TableCell>
                 </TableRow>
               )}
@@ -158,4 +132,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default Shipments;
