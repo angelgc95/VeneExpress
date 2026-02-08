@@ -146,16 +146,65 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization")!;
-    const supabaseClient = createClient(
+    // --- Authentication & Authorization ---
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      console.error("generate-label: Missing or invalid Authorization header");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Create client with user's auth token to validate identity
+    const authClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
     );
 
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      console.error("generate-label: Invalid token", claimsError?.message);
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+    console.log("generate-label: Authenticated user", userId);
+
+    // Verify staff/admin role using the auth client (respects RLS)
+    const { data: roleData, error: roleError } = await authClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (roleError || !roleData || !["admin", "staff"].includes(roleData.role)) {
+      console.error("generate-label: Insufficient permissions for user", userId, roleError?.message);
+      return new Response(
+        JSON.stringify({ error: "Forbidden: insufficient permissions" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("generate-label: User authorized with role", roleData.role);
+
+    // --- Use authenticated client for data queries (respects RLS) ---
     const { shipmentId, boxIds } = await req.json();
 
-    // Fetch shipment
-    const { data: shipment, error: shipErr } = await supabaseClient
+    if (!shipmentId || typeof shipmentId !== "string") {
+      return new Response(
+        JSON.stringify({ error: "shipmentId is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Fetch shipment (RLS ensures only staff/admin can see)
+    const { data: shipment, error: shipErr } = await authClient
       .from("shipments")
       .select("*")
       .eq("id", shipmentId)
@@ -163,8 +212,8 @@ serve(async (req) => {
     if (shipErr) throw shipErr;
 
     // Fetch boxes
-    let boxQuery = supabaseClient.from("boxes").select("*").eq("shipment_id", shipmentId).order("created_at");
-    if (boxIds && boxIds.length > 0) {
+    let boxQuery = authClient.from("boxes").select("*").eq("shipment_id", shipmentId).order("created_at");
+    if (boxIds && Array.isArray(boxIds) && boxIds.length > 0) {
       boxQuery = boxQuery.in("id", boxIds);
     }
     const { data: boxes, error: boxErr } = await boxQuery;
@@ -173,15 +222,15 @@ serve(async (req) => {
     // Fetch addresses
     const [senderRes, receiverRes] = await Promise.all([
       shipment.sender_address_id
-        ? supabaseClient.from("addresses").select("*").eq("id", shipment.sender_address_id).single()
+        ? authClient.from("addresses").select("*").eq("id", shipment.sender_address_id).single()
         : { data: null },
       shipment.receiver_address_id
-        ? supabaseClient.from("addresses").select("*").eq("id", shipment.receiver_address_id).single()
+        ? authClient.from("addresses").select("*").eq("id", shipment.receiver_address_id).single()
         : { data: null },
     ]);
 
     // Fetch company settings
-    const { data: company } = await supabaseClient
+    const { data: company } = await authClient
       .from("company_settings")
       .select("*")
       .limit(1)
@@ -212,6 +261,8 @@ serve(async (req) => {
       </html>
     `;
 
+    console.log("generate-label: Generated", boxes?.length || 0, "labels for shipment", shipmentId);
+
     return new Response(
       JSON.stringify({ html: fullHtml, count: boxes?.length || 0 }),
       {
@@ -219,8 +270,9 @@ serve(async (req) => {
       }
     );
   } catch (error: any) {
+    console.error("generate-label: Error", error.message);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Failed to generate labels" }),
       {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

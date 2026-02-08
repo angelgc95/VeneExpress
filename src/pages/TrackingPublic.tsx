@@ -42,23 +42,19 @@ const TrackingPublic = () => {
     setResult(null);
     setEvents([]);
 
-    // Search by public_tracking_code (unguessable random string)
-    const { data: shipment } = await (supabase as any)
-      .from('shipments')
-      .select('id, shipment_id, status, service_type, created_at, updated_at, public_tracking_code')
-      .eq('public_tracking_code', q.trim())
-      .maybeSingle();
+    // Use secure RPC instead of direct table access
+    const { data, error } = await supabase.rpc('get_tracking_info', {
+      p_tracking_code: q.trim(),
+    });
 
-    if (shipment) {
-      setResult(shipment);
-
-      const { data: statusEvents } = await (supabase as any)
-        .from('status_events')
-        .select('id, status, note, created_at')
-        .eq('shipment_id', shipment.id)
-        .order('created_at', { ascending: false });
-      setEvents(statusEvents || []);
+    if (!error && data) {
+      const trackingData = data as any;
+      if (trackingData?.shipment) {
+        setResult(trackingData.shipment);
+        setEvents(trackingData.events || []);
+      }
     }
+
     setLoading(false);
   };
 

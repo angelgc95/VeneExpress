@@ -1,1 +1,4 @@
 project_id = "mioaxucvahyzkefqxzre"
+
+[functions.generate-label]
+verify_jwt = false

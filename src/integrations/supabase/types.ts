@@ -566,6 +566,7 @@ export type Database = {
     Functions: {
       generate_invoice_number: { Args: never; Returns: string }
       generate_shipment_id: { Args: never; Returns: string }
+      get_tracking_info: { Args: { p_tracking_code: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
