@@ -81,6 +81,7 @@ const StatusTimeline = ({ shipmentId, currentStatus, onStatusChange }: StatusTim
 
   return (
     <div className="space-y-6">
+      {/* UI-only check for better UX — actual security is enforced by RLS policies */}
       {isStaff && (
         <div className="flex flex-wrap items-end gap-3 p-4 bg-muted rounded-lg">
           <div className="space-y-1 flex-1 min-w-[150px]">

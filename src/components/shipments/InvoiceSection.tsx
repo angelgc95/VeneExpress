@@ -190,6 +190,7 @@ const InvoiceSection = ({ shipmentId, boxes }: InvoiceSectionProps) => {
       <div className="text-center py-8 space-y-4">
         <FileText className="h-12 w-12 mx-auto text-muted-foreground/50" />
         <p className="text-muted-foreground">No invoice generated yet</p>
+        {/* UI-only check for better UX — actual security is enforced by RLS policies */}
         {isStaff && (
           <div className="max-w-xs mx-auto space-y-3">
             <div className="space-y-2">

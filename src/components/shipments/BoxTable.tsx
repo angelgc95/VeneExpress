@@ -135,6 +135,7 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
 
   return (
     <div className="space-y-4">
+      {/* UI-only check for better UX — actual security is enforced by RLS policies */}
       {!isFinalized && isStaff && (
         <div className="flex flex-wrap items-end gap-3 p-4 bg-muted rounded-lg">
           <div className="space-y-1">

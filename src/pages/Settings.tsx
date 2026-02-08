@@ -102,6 +102,7 @@ const Settings = () => {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // UI-only check for better UX — actual security is enforced by RLS policies on the database
   if (!isAdmin) {
     return (
       <div className="flex items-center justify-center py-20">
