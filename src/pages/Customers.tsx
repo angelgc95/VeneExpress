@@ -10,6 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Plus, Search, Users, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Customer } from '@/types/shipping';
@@ -20,6 +24,8 @@ const Customers = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ first_name: '', last_name: '', phone: '', email: '', notes: '' });
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [unlinkDialogOpen, setUnlinkDialogOpen] = useState(false);
+  const [blockedIds, setBlockedIds] = useState<string[]>([]);
 
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
@@ -56,7 +62,6 @@ const Customers = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      // Check which customers have linked shipments
       const { data: linkedShipments } = await (supabase as any)
         .from('shipments')
         .select('customer_id')
@@ -64,7 +69,7 @@ const Customers = () => {
 
       const linkedIds = new Set((linkedShipments || []).map((s: any) => s.customer_id));
       const deletableIds = ids.filter((id) => !linkedIds.has(id));
-      const blockedCount = ids.length - deletableIds.length;
+      const blocked = ids.filter((id) => linkedIds.has(id));
 
       if (deletableIds.length > 0) {
         const { error } = await (supabase as any)
@@ -74,18 +79,66 @@ const Customers = () => {
         if (error) throw error;
       }
 
-      return { deleted: deletableIds.length, blocked: blockedCount };
+      return { deleted: deletableIds.length, blocked };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
-      setSelected(new Set());
-      if (result.deleted > 0 && result.blocked === 0) {
+      if (result.blocked.length === 0) {
+        setSelected(new Set());
         toast.success(`${result.deleted} customer(s) deleted`);
-      } else if (result.deleted > 0 && result.blocked > 0) {
-        toast.warning(`${result.deleted} deleted, ${result.blocked} skipped (have linked shipments)`);
+      } else if (result.deleted > 0) {
+        toast.success(`${result.deleted} deleted`);
+        setBlockedIds(result.blocked);
+        setUnlinkDialogOpen(true);
       } else {
-        toast.error('No customers deleted — all have linked shipments');
+        setBlockedIds(result.blocked);
+        setUnlinkDialogOpen(true);
       }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const forceDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      // First delete all shipment-related data for these customers
+      const { data: shipments } = await (supabase as any)
+        .from('shipments')
+        .select('id')
+        .in('customer_id', ids);
+      const shipmentIds = (shipments || []).map((s: any) => s.id);
+
+      if (shipmentIds.length > 0) {
+        // Delete child records in order
+        await (supabase as any).from('status_events').delete().in('shipment_id', shipmentIds);
+        await (supabase as any).from('boxes').delete().in('shipment_id', shipmentIds);
+        
+        const { data: invoices } = await (supabase as any)
+          .from('invoices')
+          .select('id')
+          .in('shipment_id', shipmentIds);
+        const invoiceIds = (invoices || []).map((i: any) => i.id);
+
+        if (invoiceIds.length > 0) {
+          await (supabase as any).from('payments').delete().in('invoice_id', invoiceIds);
+          await (supabase as any).from('invoice_line_items').delete().in('invoice_id', invoiceIds);
+          await (supabase as any).from('invoices').delete().in('shipment_id', shipmentIds);
+        }
+
+        await (supabase as any).from('notification_log').delete().in('shipment_id', shipmentIds);
+        await (supabase as any).from('shipments').delete().in('customer_id', ids);
+      }
+
+      const { error } = await (supabase as any).from('customers').delete().in('id', ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['shipments'] });
+      setSelected(new Set());
+      setBlockedIds([]);
+      setUnlinkDialogOpen(false);
+      toast.success(`${count} customer(s) and linked shipments deleted`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -240,6 +293,34 @@ const Customers = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={unlinkDialogOpen} onOpenChange={(open) => {
+        setUnlinkDialogOpen(open);
+        if (!open) setBlockedIds([]);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading">Customers have linked shipments</AlertDialogTitle>
+            <AlertDialogDescription>
+              {blockedIds.length} customer(s) have linked shipments and cannot be deleted directly.
+              Would you like to unlink and delete all related shipments before deleting these customers?
+              This action is irreversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setBlockedIds([]); setSelected(new Set()); }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => forceDeleteMutation.mutate(blockedIds)}
+              disabled={forceDeleteMutation.isPending}
+            >
+              {forceDeleteMutation.isPending ? 'Deleting...' : 'Yes, delete all'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
