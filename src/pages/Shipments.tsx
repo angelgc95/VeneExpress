@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Package } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { toast } from 'sonner';
+import { Plus, Search, Package, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Shipment, ShipmentStatus } from '@/types/shipping';
 
@@ -19,11 +21,16 @@ const statusVariant = (status: ShipmentStatus) => {
   return map[status] ?? 'outline';
 };
 
+const ALL_STATUSES: ShipmentStatus[] = ['Created', 'In Warehouse', 'Paid', 'Shipped', 'Delivered'];
+
 const Shipments = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState<string>('');
 
   const { data: shipments = [] } = useQuery({
     queryKey: ['shipments'],
@@ -37,6 +44,23 @@ const Shipments = () => {
     },
   });
 
+  const bulkStatusMutation = useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: ShipmentStatus }) => {
+      const { error } = await (supabase as any)
+        .from('shipments')
+        .update({ status })
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: (_, { ids, status }) => {
+      queryClient.invalidateQueries({ queryKey: ['shipments'] });
+      setSelected(new Set());
+      setBulkStatus('');
+      toast.success(`${ids.length} shipment(s) updated to "${status}"`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const filtered = shipments.filter((s) => {
     const q = search.toLowerCase();
     const matchSearch = !q
@@ -46,6 +70,30 @@ const Shipments = () => {
     return matchSearch && matchStatus;
   });
 
+  const allFilteredSelected = filtered.length > 0 && filtered.every((s) => selected.has(s.id));
+
+  const toggleAll = () => {
+    if (allFilteredSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map((s) => s.id)));
+    }
+  };
+
+  const toggleOne = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkStatusChange = () => {
+    if (!bulkStatus || selected.size === 0) return;
+    bulkStatusMutation.mutate({ ids: Array.from(selected), status: bulkStatus as ShipmentStatus });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -53,9 +101,32 @@ const Shipments = () => {
           <h1 className="text-2xl font-bold font-heading">Shipments</h1>
           <p className="text-muted-foreground text-sm">{shipments.length} total shipments</p>
         </div>
-        <Button onClick={() => navigate('/shipments/new')} className="bg-accent text-accent-foreground hover:bg-accent/90">
-          <Plus className="h-4 w-4 mr-2" /> New Shipment
-        </Button>
+        <div className="flex items-center gap-2">
+          {selected.size > 0 && (
+            <div className="flex items-center gap-2">
+              <Select value={bulkStatus} onValueChange={setBulkStatus}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Set status..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {ALL_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={handleBulkStatusChange}
+                disabled={!bulkStatus || bulkStatusMutation.isPending}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Update {selected.size}
+              </Button>
+            </div>
+          )}
+          <Button onClick={() => navigate('/shipments/new')} className="bg-accent text-accent-foreground hover:bg-accent/90">
+            <Plus className="h-4 w-4 mr-2" /> New Shipment
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -76,11 +147,9 @@ const Shipments = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="Created">Created</SelectItem>
-                <SelectItem value="In Warehouse">In Warehouse</SelectItem>
-                <SelectItem value="Paid">Paid</SelectItem>
-                <SelectItem value="Shipped">Shipped</SelectItem>
-                <SelectItem value="Delivered">Delivered</SelectItem>
+                {ALL_STATUSES.map((s) => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -89,6 +158,13 @@ const Shipments = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={allFilteredSelected}
+                    onCheckedChange={toggleAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead>Shipment ID</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Service</TableHead>
@@ -101,24 +177,35 @@ const Shipments = () => {
                 <TableRow
                   key={s.id}
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => navigate(`/shipments/${s.id}`)}
+                  data-state={selected.has(s.id) ? 'selected' : undefined}
                 >
-                  <TableCell className="font-mono-id font-medium text-sm">{s.shipment_id}</TableCell>
-                  <TableCell>{s.customers?.first_name} {s.customers?.last_name}</TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selected.has(s.id)}
+                      onCheckedChange={() => toggleOne(s.id)}
+                      aria-label={`Select ${s.shipment_id}`}
+                    />
+                  </TableCell>
+                  <TableCell className="font-mono-id font-medium text-sm" onClick={() => navigate(`/shipments/${s.id}`)}>
+                    {s.shipment_id}
+                  </TableCell>
+                  <TableCell onClick={() => navigate(`/shipments/${s.id}`)}>
+                    {s.customers?.first_name} {s.customers?.last_name}
+                  </TableCell>
+                  <TableCell onClick={() => navigate(`/shipments/${s.id}`)}>
                     <Badge variant={s.service_type === 'AIR' ? 'info' : 'secondary'}>{s.service_type}</Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={() => navigate(`/shipments/${s.id}`)}>
                     <Badge variant={statusVariant(s.status)}>{s.status}</Badge>
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-sm hidden md:table-cell">
+                  <TableCell className="text-muted-foreground text-sm hidden md:table-cell" onClick={() => navigate(`/shipments/${s.id}`)}>
                     {format(new Date(s.created_at), 'MMM d, yyyy')}
                   </TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-12">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
                     <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     {search || statusFilter !== 'all' ? 'No shipments match your filters' : 'No shipments yet'}
                   </TableCell>
