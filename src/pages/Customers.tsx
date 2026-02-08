@@ -56,16 +56,36 @@ const Customers = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await (supabase as any)
-        .from('customers')
-        .delete()
-        .in('id', ids);
-      if (error) throw error;
+      // Check which customers have linked shipments
+      const { data: linkedShipments } = await (supabase as any)
+        .from('shipments')
+        .select('customer_id')
+        .in('customer_id', ids);
+
+      const linkedIds = new Set((linkedShipments || []).map((s: any) => s.customer_id));
+      const deletableIds = ids.filter((id) => !linkedIds.has(id));
+      const blockedCount = ids.length - deletableIds.length;
+
+      if (deletableIds.length > 0) {
+        const { error } = await (supabase as any)
+          .from('customers')
+          .delete()
+          .in('id', deletableIds);
+        if (error) throw error;
+      }
+
+      return { deleted: deletableIds.length, blocked: blockedCount };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       setSelected(new Set());
-      toast.success(`${selected.size} customer(s) deleted`);
+      if (result.deleted > 0 && result.blocked === 0) {
+        toast.success(`${result.deleted} customer(s) deleted`);
+      } else if (result.deleted > 0 && result.blocked > 0) {
+        toast.warning(`${result.deleted} deleted, ${result.blocked} skipped (have linked shipments)`);
+      } else {
+        toast.error('No customers deleted — all have linked shipments');
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
