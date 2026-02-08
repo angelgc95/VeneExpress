@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Anchor } from 'lucide-react';
+import logo from '@/assets/logo.png';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -80,12 +80,10 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md animate-fade-in">
         <CardHeader className="text-center space-y-3">
-          <div className="flex items-center justify-center gap-2">
-            <div className="p-2 bg-accent/10 rounded-xl">
-              <Anchor className="h-8 w-8 text-accent" />
-            </div>
+          <div className="flex items-center justify-center">
+            <img src={logo} alt="VeneExpress Shipping" className="h-16 w-16 object-contain" />
           </div>
-          <h1 className="text-2xl font-bold font-heading">Angel Shipping</h1>
+          <h1 className="text-2xl font-bold font-heading">VeneExpress Shipping</h1>
           <CardDescription>Carrier management system</CardDescription>
         </CardHeader>
         <CardContent>

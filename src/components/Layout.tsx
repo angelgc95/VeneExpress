@@ -4,8 +4,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard, Package, Users, ScanLine, Settings, LogOut,
-  Anchor, Menu, ShieldCheck
+  Menu, ShieldCheck
 } from 'lucide-react';
+import logo from '@/assets/logo.png';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -41,8 +42,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         mobileOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
-          <Anchor className="h-7 w-7 text-sidebar-primary" />
-          <span className="text-lg font-bold font-heading tracking-tight">Angel Shipping</span>
+          <img src={logo} alt="VeneExpress Shipping" className="h-8 w-8 object-contain" />
+          <span className="text-lg font-bold font-heading tracking-tight">VeneExpress</span>
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
@@ -96,8 +97,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             <Menu className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-2">
-            <Anchor className="h-5 w-5 text-accent" />
-            <span className="font-bold font-heading">Angel Shipping</span>
+            <img src={logo} alt="VeneExpress Shipping" className="h-6 w-6 object-contain" />
+            <span className="font-bold font-heading">VeneExpress</span>
           </div>
         </header>
 

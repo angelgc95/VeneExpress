@@ -1,7 +1,8 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ShieldAlert, LogOut, Anchor } from 'lucide-react';
+import { ShieldAlert, LogOut } from 'lucide-react';
+import logo from '@/assets/logo.png';
 
 const PendingApproval = () => {
   const { user, signOut } = useAuth();
@@ -10,12 +11,10 @@ const PendingApproval = () => {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md animate-fade-in text-center">
         <CardHeader className="space-y-4">
-          <div className="flex items-center justify-center gap-2">
-            <div className="p-2 bg-accent/10 rounded-xl">
-              <Anchor className="h-8 w-8 text-accent" />
-            </div>
+          <div className="flex items-center justify-center">
+            <img src={logo} alt="VeneExpress Shipping" className="h-16 w-16 object-contain" />
           </div>
-          <h1 className="text-2xl font-bold font-heading">Angel Shipping</h1>
+          <h1 className="text-2xl font-bold font-heading">VeneExpress Shipping</h1>
           <div className="flex justify-center">
             <div className="p-3 bg-warning/10 rounded-full">
               <ShieldAlert className="h-10 w-10 text-warning" />

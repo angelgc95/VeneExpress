@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Anchor, Search, Clock, Package } from 'lucide-react';
+import { Search, Clock, Package } from 'lucide-react';
+import logo from '@/assets/logo.png';
 import { format } from 'date-fns';
 import type { ShipmentStatus, StatusEvent } from '@/types/shipping';
 
@@ -66,8 +67,8 @@ const TrackingPublic = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center gap-2">
-          <Anchor className="h-6 w-6 text-accent" />
-          <span className="font-bold font-heading text-lg">Angel Shipping</span>
+          <img src={logo} alt="VeneExpress Shipping" className="h-8 w-8 object-contain" />
+          <span className="font-bold font-heading text-lg">VeneExpress Shipping</span>
           <span className="text-muted-foreground text-sm ml-2">Track your shipment</span>
         </div>
       </header>
