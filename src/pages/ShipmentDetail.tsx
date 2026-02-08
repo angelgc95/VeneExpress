@@ -5,11 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Package, FileText, Clock, MapPin } from 'lucide-react';
+import { ArrowLeft, Package, FileText, Clock, MapPin, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import BoxTable from '@/components/shipments/BoxTable';
 import StatusTimeline from '@/components/shipments/StatusTimeline';
 import InvoiceSection from '@/components/shipments/InvoiceSection';
+import LabelPrintButton from '@/components/shipments/LabelPrintButton';
 import type { Shipment, Address, Box, ShipmentStatus } from '@/types/shipping';
 
 const statusVariant = (status: ShipmentStatus) => {
@@ -130,6 +131,12 @@ const ShipmentDetail = () => {
             {' • '}Created {format(new Date(shipment.created_at), 'MMM d, yyyy')}
           </p>
         </div>
+        {boxes.length > 0 && (
+          <LabelPrintButton
+            shipmentId={shipment.id}
+            label={`Print Labels (${boxes.length})`}
+          />
+        )}
       </div>
 
       <Tabs defaultValue="boxes">

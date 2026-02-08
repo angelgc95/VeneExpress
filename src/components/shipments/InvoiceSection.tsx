@@ -90,7 +90,14 @@ const InvoiceSection = ({ shipmentId, boxes }: InvoiceSectionProps) => {
       }).select('id').single();
       if (invErr) throw invErr;
 
-      const items = boxes.map((box) => ({
+      const items: Array<{
+        invoice_id: string;
+        type: 'shipping' | 'discount' | 'misc';
+        description: string;
+        qty: number;
+        unit_price: number;
+        line_total: number;
+      }> = boxes.map((box) => ({
         invoice_id: inv.id,
         type: 'shipping' as const,
         description: `Shipping Box ${box.box_id} (${parseFloat(String(box.volume_ft3)).toFixed(2)} ft³ × $${parseFloat(String(box.applied_rate)).toFixed(2)})`,
@@ -102,7 +109,7 @@ const InvoiceSection = ({ shipmentId, boxes }: InvoiceSectionProps) => {
       if (adj !== 0) {
         items.push({
           invoice_id: inv.id,
-          type: (adj > 0 ? 'misc' : 'discount') as 'shipping' | 'discount' | 'misc',
+          type: adj > 0 ? 'misc' : 'discount',
           description: adj > 0 ? 'Additional charges' : 'Discount',
           qty: 1,
           unit_price: adj,
