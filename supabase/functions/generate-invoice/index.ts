@@ -7,6 +7,16 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function escapeHtml(unsafe: any): string {
+  if (typeof unsafe !== 'string') return '';
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function buildInvoiceHtml(
   invoice: any,
   lineItems: any[],
@@ -25,8 +35,8 @@ function buildInvoiceHtml(
     .map(
       (item) => `
       <tr>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px;">${item.description}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;">${item.qty}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px;">${escapeHtml(item.description)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:center;">${Number(item.qty)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;">${fmtMoney(item.unit_price)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px;text-align:right;font-weight:600;">${fmtMoney(item.line_total)}</td>
       </tr>`
@@ -39,8 +49,8 @@ function buildInvoiceHtml(
           (p) => `
         <tr>
           <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;">${fmtDate(p.paid_at)}</td>
-          <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;text-transform:capitalize;">${p.method}</td>
-          <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280;">${p.reference || "—"}</td>
+          <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;text-transform:capitalize;">${escapeHtml(p.method)}</td>
+          <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280;">${escapeHtml(p.reference) || "—"}</td>
           <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right;font-weight:600;">${fmtMoney(p.amount)}</td>
         </tr>`
         )
@@ -103,13 +113,13 @@ function buildInvoiceHtml(
         <!-- Header -->
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;">
           <div>
-            <h1 style="font-size:28px;font-weight:800;margin:0;letter-spacing:-0.5px;">${company?.name || "VeneExpress Shipping"}</h1>
-            ${company?.phone ? `<p style="margin:4px 0 0;font-size:13px;color:#6b7280;">${company.phone}</p>` : ""}
-            ${company?.address ? `<p style="margin:2px 0 0;font-size:13px;color:#6b7280;">${company.address}</p>` : ""}
+            <h1 style="font-size:28px;font-weight:800;margin:0;letter-spacing:-0.5px;">${escapeHtml(company?.name) || "VeneExpress Shipping"}</h1>
+            ${company?.phone ? `<p style="margin:4px 0 0;font-size:13px;color:#6b7280;">${escapeHtml(company.phone)}</p>` : ""}
+            ${company?.address ? `<p style="margin:2px 0 0;font-size:13px;color:#6b7280;">${escapeHtml(company.address)}</p>` : ""}
           </div>
           <div style="text-align:right;">
             <h2 style="font-size:24px;font-weight:700;margin:0;color:#374151;">INVOICE</h2>
-            <p style="margin:4px 0 0;font-size:15px;font-weight:600;font-family:monospace;">${invoice.invoice_number}</p>
+            <p style="margin:4px 0 0;font-size:15px;font-weight:600;font-family:monospace;">${escapeHtml(invoice.invoice_number)}</p>
             <p style="margin:4px 0 0;font-size:12px;color:#6b7280;">Date: ${fmtDate(invoice.created_at)}</p>
             ${invoice.is_finalized ? `<p style="margin:4px 0 0;font-size:11px;color:#6b7280;">Finalized: ${fmtDate(invoice.finalized_at)}</p>` : ""}
           </div>
@@ -119,16 +129,16 @@ function buildInvoiceHtml(
         <div style="display:flex;gap:24px;margin-bottom:28px;">
           <div style="flex:1;background:#f9fafb;border-radius:6px;padding:14px;">
             <p style="font-size:10px;font-weight:600;color:#6b7280;text-transform:uppercase;margin:0 0 4px;">Bill To</p>
-            <p style="font-size:14px;font-weight:600;margin:0;">${customer?.first_name || ""} ${customer?.last_name || ""}</p>
-            ${customer?.phone ? `<p style="font-size:12px;color:#6b7280;margin:2px 0 0;">${customer.phone}</p>` : ""}
-            ${customer?.email ? `<p style="font-size:12px;color:#6b7280;margin:2px 0 0;">${customer.email}</p>` : ""}
+            <p style="font-size:14px;font-weight:600;margin:0;">${escapeHtml(customer?.first_name)} ${escapeHtml(customer?.last_name)}</p>
+            ${customer?.phone ? `<p style="font-size:12px;color:#6b7280;margin:2px 0 0;">${escapeHtml(customer.phone)}</p>` : ""}
+            ${customer?.email ? `<p style="font-size:12px;color:#6b7280;margin:2px 0 0;">${escapeHtml(customer.email)}</p>` : ""}
           </div>
           <div style="flex:1;background:#f9fafb;border-radius:6px;padding:14px;">
             <p style="font-size:10px;font-weight:600;color:#6b7280;text-transform:uppercase;margin:0 0 4px;">Shipment</p>
-            <p style="font-size:14px;font-weight:600;margin:0;font-family:monospace;">${shipment.shipment_id}</p>
-            <p style="font-size:12px;color:#6b7280;margin:2px 0 0;">Service: ${shipment.service_type}</p>
+            <p style="font-size:14px;font-weight:600;margin:0;font-family:monospace;">${escapeHtml(shipment.shipment_id)}</p>
+            <p style="font-size:12px;color:#6b7280;margin:2px 0 0;">Service: ${escapeHtml(shipment.service_type)}</p>
             <p style="font-size:12px;margin:2px 0 0;">
-              Status: <span style="color:${statusColor};font-weight:600;">${invoice.payment_status}</span>
+              Status: <span style="color:${statusColor};font-weight:600;">${escapeHtml(invoice.payment_status)}</span>
             </p>
           </div>
         </div>
@@ -174,7 +184,7 @@ function buildInvoiceHtml(
         <!-- Footer -->
         <div style="margin-top:36px;padding-top:16px;border-top:1px solid #e5e7eb;text-align:center;">
           <p style="font-size:11px;color:#9ca3af;margin:0;">Thank you for your business!</p>
-          <p style="font-size:11px;color:#9ca3af;margin:4px 0 0;">${company?.name || "VeneExpress Shipping"}${company?.phone ? " • " + company.phone : ""}</p>
+          <p style="font-size:11px;color:#9ca3af;margin:4px 0 0;">${escapeHtml(company?.name) || "VeneExpress Shipping"}${company?.phone ? " • " + escapeHtml(company.phone) : ""}</p>
         </div>
       </div>
     </body>
