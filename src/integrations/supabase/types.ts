@@ -583,10 +583,13 @@ export type Database = {
       payment_status: "Unpaid" | "Partial" | "Paid"
       service_type: "SEA" | "AIR"
       shipment_status:
-        | "Created"
-        | "In Warehouse"
+        | "Label Created"
+        | "Received"
         | "Paid"
         | "Shipped"
+        | "Arrived in Destination"
+        | "Released by Customs"
+        | "Ready for Delivery"
         | "Delivered"
         | "Cancelled"
     }
@@ -722,10 +725,13 @@ export const Constants = {
       payment_status: ["Unpaid", "Partial", "Paid"],
       service_type: ["SEA", "AIR"],
       shipment_status: [
-        "Created",
-        "In Warehouse",
+        "Label Created",
+        "Received",
         "Paid",
         "Shipped",
+        "Arrived in Destination",
+        "Released by Customs",
+        "Ready for Delivery",
         "Delivered",
         "Cancelled",
       ],
