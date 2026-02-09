@@ -21,6 +21,7 @@ const statusColor = (status: ShipmentStatus) => {
     'Paid': 'bg-info',
     'Shipped': 'bg-primary',
     'Delivered': 'bg-success',
+    'Cancelled': 'bg-destructive',
   };
   return map[status] ?? 'bg-muted-foreground';
 };
