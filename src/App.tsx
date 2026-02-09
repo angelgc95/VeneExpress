@@ -8,9 +8,11 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Layout from "@/components/Layout";
 
-// Lazy-loaded routes for code splitting
-const Auth = lazy(() => import("./pages/Auth"));
-const Dashboard = lazy(() => import("./pages/Index"));
+// Eagerly imported initial routes to reduce critical request chain depth
+import Auth from "./pages/Auth";
+import Dashboard from "./pages/Index";
+
+// Lazy-loaded routes for code splitting (non-initial pages)
 const Customers = lazy(() => import("./pages/Customers"));
 const Shipments = lazy(() => import("./pages/Shipments"));
 const CreateShipment = lazy(() => import("./pages/CreateShipment"));
