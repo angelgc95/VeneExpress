@@ -11,9 +11,10 @@ import type { Shipment, Box, ShipmentStatus } from '@/types/shipping';
 
 const statusVariant = (status: ShipmentStatus) => {
   const map: Record<ShipmentStatus, 'secondary' | 'warning' | 'info' | 'default' | 'success' | 'destructive'> = {
-    'Created': 'secondary', 'In Warehouse': 'warning', 'Paid': 'info', 'Shipped': 'default', 'Delivered': 'success', 'Cancelled': 'destructive',
+    'Label Created': 'secondary', 'Received': 'warning', 'Shipped': 'info', 'Arrived in Destination': 'default',
+    'Released by Customs': 'default', 'Ready for Delivery': 'warning', 'Delivered': 'success', 'Cancelled': 'destructive',
   };
-  return map[status] ?? 'outline';
+  return map[status] ?? 'secondary';
 };
 
 const ScanPage = () => {

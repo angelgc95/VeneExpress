@@ -12,14 +12,16 @@ import { Clock, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import type { StatusEvent, ShipmentStatus } from '@/types/shipping';
 
-const STATUSES: ShipmentStatus[] = ['Created', 'In Warehouse', 'Paid', 'Shipped', 'Delivered'];
+const STATUSES: ShipmentStatus[] = ['Label Created', 'Received', 'Shipped', 'Arrived in Destination', 'Released by Customs', 'Ready for Delivery', 'Delivered'];
 
 const statusColor = (status: ShipmentStatus) => {
   const map: Record<ShipmentStatus, string> = {
-    'Created': 'bg-muted-foreground',
-    'In Warehouse': 'bg-warning',
-    'Paid': 'bg-info',
-    'Shipped': 'bg-primary',
+    'Label Created': 'bg-muted-foreground',
+    'Received': 'bg-warning',
+    'Shipped': 'bg-info',
+    'Arrived in Destination': 'bg-primary',
+    'Released by Customs': 'bg-primary',
+    'Ready for Delivery': 'bg-warning',
     'Delivered': 'bg-success',
     'Cancelled': 'bg-destructive',
   };

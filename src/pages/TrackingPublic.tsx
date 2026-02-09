@@ -12,17 +12,20 @@ import type { ShipmentStatus, StatusEvent } from '@/types/shipping';
 
 const statusVariant = (status: ShipmentStatus) => {
   const map: Record<ShipmentStatus, 'secondary' | 'warning' | 'info' | 'default' | 'success' | 'destructive'> = {
-    'Created': 'secondary', 'In Warehouse': 'warning', 'Paid': 'info', 'Shipped': 'default', 'Delivered': 'success', 'Cancelled': 'destructive',
+    'Label Created': 'secondary', 'Received': 'warning', 'Shipped': 'info', 'Arrived in Destination': 'default',
+    'Released by Customs': 'default', 'Ready for Delivery': 'warning', 'Delivered': 'success', 'Cancelled': 'destructive',
   };
-  return map[status] ?? 'outline';
+  return map[status] ?? 'secondary';
 };
 
 const statusColor = (status: ShipmentStatus) => {
   const map: Record<ShipmentStatus, string> = {
-    'Created': 'bg-muted-foreground',
-    'In Warehouse': 'bg-warning',
-    'Paid': 'bg-info',
-    'Shipped': 'bg-primary',
+    'Label Created': 'bg-muted-foreground',
+    'Received': 'bg-warning',
+    'Shipped': 'bg-info',
+    'Arrived in Destination': 'bg-primary',
+    'Released by Customs': 'bg-primary',
+    'Ready for Delivery': 'bg-warning',
     'Delivered': 'bg-success',
     'Cancelled': 'bg-destructive',
   };
