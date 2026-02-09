@@ -193,14 +193,31 @@ serve(async (req) => {
 
     console.log("generate-label: User authorized with role", roleData.role);
 
-    // --- Use authenticated client for data queries (respects RLS) ---
+    // --- Parse & validate request (respects RLS) ---
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const { shipmentId, boxIds } = await req.json();
 
-    if (!shipmentId || typeof shipmentId !== "string") {
+    if (!shipmentId || typeof shipmentId !== "string" || !UUID_REGEX.test(shipmentId)) {
       return new Response(
-        JSON.stringify({ error: "shipmentId is required" }),
+        JSON.stringify({ error: "Invalid shipmentId format" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Validate boxIds array if provided
+    if (boxIds !== undefined && boxIds !== null) {
+      if (!Array.isArray(boxIds) || boxIds.length > 100) {
+        return new Response(
+          JSON.stringify({ error: "Invalid boxIds parameter" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (!boxIds.every((id: unknown) => typeof id === "string" && UUID_REGEX.test(id as string))) {
+        return new Response(
+          JSON.stringify({ error: "Invalid boxId format in array" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Fetch shipment (RLS ensures only staff/admin can see)

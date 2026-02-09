@@ -234,11 +234,12 @@ serve(async (req) => {
 
     console.log("generate-invoice: User authorized with role", roleData.role);
 
-    // --- Parse request ---
+    // --- Parse & validate request ---
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const { shipmentId } = await req.json();
-    if (!shipmentId || typeof shipmentId !== "string") {
+    if (!shipmentId || typeof shipmentId !== "string" || !UUID_REGEX.test(shipmentId)) {
       return new Response(
-        JSON.stringify({ error: "shipmentId is required" }),
+        JSON.stringify({ error: "Invalid shipmentId format" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
