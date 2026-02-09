@@ -70,13 +70,20 @@ function escapeHtml(unsafe: any): string {
     .replace(/'/g, '&#039;');
 }
 
-function buildLabelHtml(
-  box: any,
-  shipment: any,
-  senderAddr: any,
-  receiverAddr: any,
-  company: any
-): string {
+function buildBarcodeLabel(box: any, shipment: any): string {
+  const barcodeSvg = code128B(box.box_id);
+  return `
+    <div class="label">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;">
+        <div style="font-size:16px;font-weight:700;font-family:monospace;letter-spacing:1px">${escapeHtml(shipment.shipment_id)}</div>
+        ${barcodeSvg}
+        <div style="font-family:monospace;font-size:11px;letter-spacing:1px">${escapeHtml(box.box_id)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function buildDetailLabel(box: any, shipment: any, senderAddr: any, receiverAddr: any): string {
   const vol = parseFloat(box.volume_ft3 || 0).toFixed(2);
   const barcodeSvg = code128B(box.box_id);
 
@@ -84,67 +91,61 @@ function buildLabelHtml(
     if (!a) return "<p>N/A</p>";
     return `
       <p style="font-weight:600;margin:0">${escapeHtml(a.name)}</p>
-      ${a.phone ? `<p style="margin:0;font-size:11px">${escapeHtml(a.phone)}</p>` : ""}
-      <p style="margin:0;font-size:11px">${escapeHtml(a.line1)}</p>
-      ${a.line2 ? `<p style="margin:0;font-size:11px">${escapeHtml(a.line2)}</p>` : ""}
-      <p style="margin:0;font-size:11px">${escapeHtml(a.city)}${a.state ? ", " + escapeHtml(a.state) : ""} ${escapeHtml(a.postal_code || "")}</p>
-      <p style="margin:0;font-size:11px;font-weight:600">${escapeHtml(a.country)}</p>
+      ${a.phone ? `<p style="margin:0;font-size:10px">${escapeHtml(a.phone)}</p>` : ""}
+      <p style="margin:0;font-size:10px">${escapeHtml(a.line1)}</p>
+      ${a.line2 ? `<p style="margin:0;font-size:10px">${escapeHtml(a.line2)}</p>` : ""}
+      <p style="margin:0;font-size:10px">${escapeHtml(a.city)}${a.state ? ", " + escapeHtml(a.state) : ""} ${escapeHtml(a.postal_code || "")}</p>
+      <p style="margin:0;font-size:10px;font-weight:600">${escapeHtml(a.country)}</p>
     `;
   };
 
   return `
-    <div style="width:4in;height:6in;border:1px solid #000;padding:12px;font-family:Arial,sans-serif;font-size:12px;box-sizing:border-box;page-break-after:always;display:flex;flex-direction:column;">
-      <!-- Header -->
-      <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:8px;">
-        <div style="font-size:18px;font-weight:800;letter-spacing:1px">${escapeHtml(company?.name) || "Angel Shipping"}</div>
-        ${company?.phone ? `<div style="font-size:10px">${escapeHtml(company.phone)}</div>` : ""}
-      </div>
-
+    <div class="label">
       <!-- IDs -->
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
         <div>
-          <div style="font-size:9px;color:#666;text-transform:uppercase">Shipment</div>
-          <div style="font-size:14px;font-weight:700;font-family:monospace">${escapeHtml(shipment.shipment_id)}</div>
+          <div style="font-size:8px;color:#666;text-transform:uppercase">Shipment</div>
+          <div style="font-size:12px;font-weight:700;font-family:monospace">${escapeHtml(shipment.shipment_id)}</div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:9px;color:#666;text-transform:uppercase">Box</div>
-          <div style="font-size:14px;font-weight:700;font-family:monospace">${escapeHtml(box.box_id)}</div>
+          <div style="font-size:8px;color:#666;text-transform:uppercase">Box</div>
+          <div style="font-size:12px;font-weight:700;font-family:monospace">${escapeHtml(box.box_id)}</div>
         </div>
       </div>
 
       <!-- Service badge -->
-      <div style="text-align:center;margin-bottom:8px;">
-        <span style="background:${shipment.service_type === "AIR" ? "#3b82f6" : "#64748b"};color:#fff;padding:2px 12px;border-radius:4px;font-size:13px;font-weight:700;letter-spacing:1px">${shipment.service_type}</span>
+      <div style="text-align:center;margin-bottom:6px;">
+        <span style="background:${shipment.service_type === "AIR" ? "#3b82f6" : "#64748b"};color:#fff;padding:2px 10px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:1px">${shipment.service_type}</span>
       </div>
 
       <!-- Addresses -->
-      <div style="display:flex;gap:8px;margin-bottom:8px;flex:1;">
-        <div style="flex:1;border:1px solid #ccc;border-radius:4px;padding:6px;">
-          <div style="font-size:9px;color:#666;text-transform:uppercase;margin-bottom:2px">From</div>
+      <div style="display:flex;gap:6px;margin-bottom:6px;flex:1;">
+        <div style="flex:1;border:1px solid #ccc;border-radius:3px;padding:4px;">
+          <div style="font-size:8px;color:#666;text-transform:uppercase;margin-bottom:2px">From</div>
           ${fmtAddr(senderAddr)}
         </div>
-        <div style="flex:1;border:1px solid #ccc;border-radius:4px;padding:6px;">
-          <div style="font-size:9px;color:#666;text-transform:uppercase;margin-bottom:2px">To</div>
+        <div style="flex:1;border:1px solid #ccc;border-radius:3px;padding:4px;">
+          <div style="font-size:8px;color:#666;text-transform:uppercase;margin-bottom:2px">To</div>
           ${fmtAddr(receiverAddr)}
         </div>
       </div>
 
       <!-- Dimensions -->
-      <div style="border:1px solid #ccc;border-radius:4px;padding:6px;margin-bottom:8px;display:flex;justify-content:space-around;text-align:center;">
+      <div style="border:1px solid #ccc;border-radius:3px;padding:4px;margin-bottom:6px;display:flex;justify-content:space-around;text-align:center;">
         <div>
-          <div style="font-size:9px;color:#666">DIMENSIONS</div>
-          <div style="font-weight:600">${parseFloat(box.length_in)}" × ${parseFloat(box.width_in)}" × ${parseFloat(box.height_in)}"</div>
+          <div style="font-size:8px;color:#666">DIMENSIONS</div>
+          <div style="font-weight:600;font-size:11px">${parseFloat(box.length_in)}" × ${parseFloat(box.width_in)}" × ${parseFloat(box.height_in)}"</div>
         </div>
         <div>
-          <div style="font-size:9px;color:#666">VOLUME</div>
-          <div style="font-weight:700;font-size:14px">${vol} ft³</div>
+          <div style="font-size:8px;color:#666">VOLUME</div>
+          <div style="font-weight:700;font-size:12px">${vol} ft³</div>
         </div>
       </div>
 
       <!-- Barcode -->
       <div style="text-align:center;margin-top:auto;">
         ${barcodeSvg}
-        <div style="font-family:monospace;font-size:11px;margin-top:2px;letter-spacing:1px">${escapeHtml(box.box_id)}</div>
+        <div style="font-family:monospace;font-size:10px;margin-top:2px;letter-spacing:1px">${escapeHtml(box.box_id)}</div>
       </div>
     </div>
   `;
@@ -156,17 +157,12 @@ serve(async (req) => {
   }
 
   try {
-    // --- Authentication & Authorization ---
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      console.error("generate-label: Missing or invalid Authorization header");
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Create client with user's auth token to validate identity
     const authClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -176,69 +172,47 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
     if (claimsError || !claimsData?.claims) {
-      console.error("generate-label: Invalid token", claimsError?.message);
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const userId = claimsData.claims.sub;
-    console.log("generate-label: Authenticated user", userId);
-
-    // Verify staff/admin role using the auth client (respects RLS)
     const { data: roleData, error: roleError } = await authClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .maybeSingle();
+      .from("user_roles").select("role").eq("user_id", userId).maybeSingle();
 
     if (roleError || !roleData || !["admin", "staff"].includes(roleData.role)) {
-      console.error("generate-label: Insufficient permissions for user", userId, roleError?.message);
-      return new Response(
-        JSON.stringify({ error: "Forbidden: insufficient permissions" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Forbidden: insufficient permissions" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    console.log("generate-label: User authorized with role", roleData.role);
-
-    // --- Parse & validate request (respects RLS) ---
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const { shipmentId, boxIds } = await req.json();
+    const { shipmentId, boxIds, labelType = "detail" } = await req.json();
 
     if (!shipmentId || typeof shipmentId !== "string" || !UUID_REGEX.test(shipmentId)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid shipmentId format" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Invalid shipmentId format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Validate boxIds array if provided
+    if (!["barcode", "detail"].includes(labelType)) {
+      return new Response(JSON.stringify({ error: "Invalid labelType. Must be 'barcode' or 'detail'" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     if (boxIds !== undefined && boxIds !== null) {
       if (!Array.isArray(boxIds) || boxIds.length > 100) {
-        return new Response(
-          JSON.stringify({ error: "Invalid boxIds parameter" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Invalid boxIds parameter" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       if (!boxIds.every((id: unknown) => typeof id === "string" && UUID_REGEX.test(id as string))) {
-        return new Response(
-          JSON.stringify({ error: "Invalid boxId format in array" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Invalid boxId format in array" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
 
-    // Fetch shipment (RLS ensures only staff/admin can see)
     const { data: shipment, error: shipErr } = await authClient
-      .from("shipments")
-      .select("*")
-      .eq("id", shipmentId)
-      .single();
+      .from("shipments").select("*").eq("id", shipmentId).single();
     if (shipErr) throw shipErr;
 
-    // Fetch boxes
     let boxQuery = authClient.from("boxes").select("*").eq("shipment_id", shipmentId).order("created_at");
     if (boxIds && Array.isArray(boxIds) && boxIds.length > 0) {
       boxQuery = boxQuery.in("id", boxIds);
@@ -246,27 +220,27 @@ serve(async (req) => {
     const { data: boxes, error: boxErr } = await boxQuery;
     if (boxErr) throw boxErr;
 
-    // Fetch addresses
-    const [senderRes, receiverRes] = await Promise.all([
-      shipment.sender_address_id
-        ? authClient.from("addresses").select("*").eq("id", shipment.sender_address_id).single()
-        : { data: null },
-      shipment.receiver_address_id
-        ? authClient.from("addresses").select("*").eq("id", shipment.receiver_address_id).single()
-        : { data: null },
-    ]);
+    let senderAddr = null;
+    let receiverAddr = null;
 
-    // Fetch company settings
-    const { data: company } = await authClient
-      .from("company_settings")
-      .select("*")
-      .limit(1)
-      .maybeSingle();
+    if (labelType === "detail") {
+      const [senderRes, receiverRes] = await Promise.all([
+        shipment.sender_address_id
+          ? authClient.from("addresses").select("*").eq("id", shipment.sender_address_id).single()
+          : { data: null },
+        shipment.receiver_address_id
+          ? authClient.from("addresses").select("*").eq("id", shipment.receiver_address_id).single()
+          : { data: null },
+      ]);
+      senderAddr = senderRes.data;
+      receiverAddr = receiverRes.data;
+    }
 
-    // Build HTML for all labels
     const labelsHtml = (boxes || [])
       .map((box: any) =>
-        buildLabelHtml(box, shipment, senderRes.data, receiverRes.data, company)
+        labelType === "barcode"
+          ? buildBarcodeLabel(box, shipment)
+          : buildDetailLabel(box, shipment, senderAddr, receiverAddr)
       )
       .join("");
 
@@ -276,11 +250,23 @@ serve(async (req) => {
       <head>
         <meta charset="utf-8"/>
         <style>
-          @page { size: 4in 6in; margin: 0; }
+          @page { size: 62mm 100mm; margin: 0; }
           body { margin: 0; padding: 0; }
+          .label {
+            width: 62mm;
+            height: 100mm;
+            padding: 8px;
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            box-sizing: border-box;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+          }
+          .label:last-child { page-break-after: auto; }
           @media print {
-            div { page-break-after: always; }
-            div:last-child { page-break-after: auto; }
+            .label { page-break-after: always; }
+            .label:last-child { page-break-after: auto; }
           }
         </style>
       </head>
@@ -288,22 +274,17 @@ serve(async (req) => {
       </html>
     `;
 
-    console.log("generate-label: Generated", boxes?.length || 0, "labels for shipment", shipmentId);
+    console.log("generate-label:", labelType, "- Generated", boxes?.length || 0, "labels for shipment", shipmentId);
 
     return new Response(
       JSON.stringify({ html: fullHtml, count: boxes?.length || 0 }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("generate-label: Error", error.message);
     return new Response(
       JSON.stringify({ error: "Failed to generate labels" }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
