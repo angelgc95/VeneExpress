@@ -14,14 +14,16 @@ import type { Shipment, ShipmentStatus } from '@/types/shipping';
 
 const statusVariant = (status: ShipmentStatus) => {
   const map: Record<ShipmentStatus, 'secondary' | 'warning' | 'info' | 'default' | 'success' | 'destructive'> = {
-    'Created': 'secondary',
-    'In Warehouse': 'warning',
-    'Paid': 'info',
-    'Shipped': 'default',
+    'Label Created': 'secondary',
+    'Received': 'warning',
+    'Shipped': 'info',
+    'Arrived in Destination': 'default',
+    'Released by Customs': 'default',
+    'Ready for Delivery': 'warning',
     'Delivered': 'success',
     'Cancelled': 'destructive',
   };
-  return map[status] ?? 'outline';
+  return map[status] ?? 'secondary';
 };
 
 const Dashboard = () => {
@@ -47,8 +49,8 @@ const Dashboard = () => {
   }, {});
 
   const kpis = [
-    { label: 'Created', count: counts['Created'] || 0, icon: Package, color: 'text-muted-foreground bg-muted' },
-    { label: 'In Warehouse', count: counts['In Warehouse'] || 0, icon: Warehouse, color: 'text-warning bg-warning/10' },
+    { label: 'Label Created', count: counts['Label Created'] || 0, icon: Package, color: 'text-muted-foreground bg-muted' },
+    { label: 'Received', count: counts['Received'] || 0, icon: Warehouse, color: 'text-warning bg-warning/10' },
     { label: 'Shipped', count: counts['Shipped'] || 0, icon: Ship, color: 'text-info bg-info/10' },
     { label: 'Delivered', count: counts['Delivered'] || 0, icon: CheckCircle, color: 'text-success bg-success/10' },
   ];

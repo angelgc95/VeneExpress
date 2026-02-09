@@ -20,12 +20,13 @@ import type { Shipment, ShipmentStatus } from '@/types/shipping';
 
 const statusVariant = (status: ShipmentStatus) => {
   const map: Record<ShipmentStatus, 'secondary' | 'warning' | 'info' | 'default' | 'success' | 'destructive'> = {
-    'Created': 'secondary', 'In Warehouse': 'warning', 'Paid': 'info', 'Shipped': 'default', 'Delivered': 'success', 'Cancelled': 'destructive',
+    'Label Created': 'secondary', 'Received': 'warning', 'Shipped': 'info', 'Arrived in Destination': 'default',
+    'Released by Customs': 'default', 'Ready for Delivery': 'warning', 'Delivered': 'success', 'Cancelled': 'destructive',
   };
   return map[status] ?? 'secondary';
 };
 
-const ALL_STATUSES: ShipmentStatus[] = ['Created', 'In Warehouse', 'Paid', 'Shipped', 'Delivered', 'Cancelled'];
+const ALL_STATUSES: ShipmentStatus[] = ['Label Created', 'Received', 'Shipped', 'Arrived in Destination', 'Released by Customs', 'Ready for Delivery', 'Delivered', 'Cancelled'];
 
 const Shipments = () => {
   const navigate = useNavigate();
