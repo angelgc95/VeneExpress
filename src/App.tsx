@@ -8,9 +8,11 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Layout from "@/components/Layout";
 
-// Eagerly imported initial routes to reduce critical request chain depth
+// Eagerly imported – Auth is the landing page for unauthenticated users
 import Auth from "./pages/Auth";
-import Dashboard from "./pages/Index";
+
+// Lazy-loaded: Dashboard loads after authentication, not needed on initial paint
+const Dashboard = lazy(() => import("./pages/Index"));
 
 // Lazy-loaded routes for code splitting (non-initial pages)
 const Customers = lazy(() => import("./pages/Customers"));
