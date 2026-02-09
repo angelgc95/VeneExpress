@@ -60,6 +60,16 @@ function code128B(text: string): string {
   return svg;
 }
 
+function escapeHtml(unsafe: any): string {
+  if (typeof unsafe !== 'string') return '';
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function buildLabelHtml(
   box: any,
   shipment: any,
@@ -73,12 +83,12 @@ function buildLabelHtml(
   const fmtAddr = (a: any) => {
     if (!a) return "<p>N/A</p>";
     return `
-      <p style="font-weight:600;margin:0">${a.name}</p>
-      ${a.phone ? `<p style="margin:0;font-size:11px">${a.phone}</p>` : ""}
-      <p style="margin:0;font-size:11px">${a.line1}</p>
-      ${a.line2 ? `<p style="margin:0;font-size:11px">${a.line2}</p>` : ""}
-      <p style="margin:0;font-size:11px">${a.city}${a.state ? ", " + a.state : ""} ${a.postal_code || ""}</p>
-      <p style="margin:0;font-size:11px;font-weight:600">${a.country}</p>
+      <p style="font-weight:600;margin:0">${escapeHtml(a.name)}</p>
+      ${a.phone ? `<p style="margin:0;font-size:11px">${escapeHtml(a.phone)}</p>` : ""}
+      <p style="margin:0;font-size:11px">${escapeHtml(a.line1)}</p>
+      ${a.line2 ? `<p style="margin:0;font-size:11px">${escapeHtml(a.line2)}</p>` : ""}
+      <p style="margin:0;font-size:11px">${escapeHtml(a.city)}${a.state ? ", " + escapeHtml(a.state) : ""} ${escapeHtml(a.postal_code || "")}</p>
+      <p style="margin:0;font-size:11px;font-weight:600">${escapeHtml(a.country)}</p>
     `;
   };
 
@@ -86,19 +96,19 @@ function buildLabelHtml(
     <div style="width:4in;height:6in;border:1px solid #000;padding:12px;font-family:Arial,sans-serif;font-size:12px;box-sizing:border-box;page-break-after:always;display:flex;flex-direction:column;">
       <!-- Header -->
       <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:8px;">
-        <div style="font-size:18px;font-weight:800;letter-spacing:1px">${company?.name || "Angel Shipping"}</div>
-        ${company?.phone ? `<div style="font-size:10px">${company.phone}</div>` : ""}
+        <div style="font-size:18px;font-weight:800;letter-spacing:1px">${escapeHtml(company?.name) || "Angel Shipping"}</div>
+        ${company?.phone ? `<div style="font-size:10px">${escapeHtml(company.phone)}</div>` : ""}
       </div>
 
       <!-- IDs -->
       <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
         <div>
           <div style="font-size:9px;color:#666;text-transform:uppercase">Shipment</div>
-          <div style="font-size:14px;font-weight:700;font-family:monospace">${shipment.shipment_id}</div>
+          <div style="font-size:14px;font-weight:700;font-family:monospace">${escapeHtml(shipment.shipment_id)}</div>
         </div>
         <div style="text-align:right">
           <div style="font-size:9px;color:#666;text-transform:uppercase">Box</div>
-          <div style="font-size:14px;font-weight:700;font-family:monospace">${box.box_id}</div>
+          <div style="font-size:14px;font-weight:700;font-family:monospace">${escapeHtml(box.box_id)}</div>
         </div>
       </div>
 
@@ -134,7 +144,7 @@ function buildLabelHtml(
       <!-- Barcode -->
       <div style="text-align:center;margin-top:auto;">
         ${barcodeSvg}
-        <div style="font-family:monospace;font-size:11px;margin-top:2px;letter-spacing:1px">${box.box_id}</div>
+        <div style="font-family:monospace;font-size:11px;margin-top:2px;letter-spacing:1px">${escapeHtml(box.box_id)}</div>
       </div>
     </div>
   `;
