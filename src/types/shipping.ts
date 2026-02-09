@@ -1,4 +1,4 @@
-export type ShipmentStatus = 'Created' | 'In Warehouse' | 'Paid' | 'Shipped' | 'Delivered';
+export type ShipmentStatus = 'Created' | 'In Warehouse' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled';
 export type ServiceType = 'SEA' | 'AIR';
 export type PaymentMethod = 'cash' | 'zelle' | 'card' | 'other';
 export type PaymentStatusType = 'Unpaid' | 'Partial' | 'Paid';

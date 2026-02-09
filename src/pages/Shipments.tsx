@@ -14,18 +14,18 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Search, Package, RefreshCw, Trash2 } from 'lucide-react';
+import { Plus, Search, Package, RefreshCw, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Shipment, ShipmentStatus } from '@/types/shipping';
 
 const statusVariant = (status: ShipmentStatus) => {
-  const map: Record<ShipmentStatus, 'secondary' | 'warning' | 'info' | 'default' | 'success'> = {
-    'Created': 'secondary', 'In Warehouse': 'warning', 'Paid': 'info', 'Shipped': 'default', 'Delivered': 'success',
+  const map: Record<ShipmentStatus, 'secondary' | 'warning' | 'info' | 'default' | 'success' | 'destructive'> = {
+    'Created': 'secondary', 'In Warehouse': 'warning', 'Paid': 'info', 'Shipped': 'default', 'Delivered': 'success', 'Cancelled': 'destructive',
   };
-  return map[status] ?? 'outline';
+  return map[status] ?? 'secondary';
 };
 
-const ALL_STATUSES: ShipmentStatus[] = ['Created', 'In Warehouse', 'Paid', 'Shipped', 'Delivered'];
+const ALL_STATUSES: ShipmentStatus[] = ['Created', 'In Warehouse', 'Paid', 'Shipped', 'Delivered', 'Cancelled'];
 
 const Shipments = () => {
   const navigate = useNavigate();
@@ -35,7 +35,7 @@ const Shipments = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<string>('');
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   const { data: shipments = [] } = useQuery({
     queryKey: ['shipments'],
@@ -66,35 +66,20 @@ const Shipments = () => {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const deleteShipmentsMutation = useMutation({
+  const cancelShipmentsMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      // Delete child records in order
-      await (supabase as any).from('status_events').delete().in('shipment_id', ids);
-      await (supabase as any).from('notification_log').delete().in('shipment_id', ids);
-      await (supabase as any).from('boxes').delete().in('shipment_id', ids);
-
-      const { data: invoices } = await (supabase as any)
-        .from('invoices')
-        .select('id')
-        .in('shipment_id', ids);
-      const invoiceIds = (invoices || []).map((i: any) => i.id);
-
-      if (invoiceIds.length > 0) {
-        await (supabase as any).from('payments').delete().in('invoice_id', invoiceIds);
-        await (supabase as any).from('invoice_line_items').delete().in('invoice_id', invoiceIds);
-        await (supabase as any).from('invoices').delete().in('shipment_id', ids);
-      }
-
-      const { error } = await (supabase as any).from('shipments').delete().in('id', ids);
+      const { error } = await (supabase as any)
+        .from('shipments')
+        .update({ status: 'Cancelled' })
+        .in('id', ids);
       if (error) throw error;
       return ids.length;
     },
     onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey: ['shipments'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
       setSelected(new Set());
-      setDeleteDialogOpen(false);
-      toast.success(`${count} shipment(s) and all related data deleted`);
+      setCancelDialogOpen(false);
+      toast.success(`${count} shipment(s) cancelled`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -161,11 +146,11 @@ const Shipments = () => {
               </Button>
               <Button
                 variant="destructive"
-                onClick={() => setDeleteDialogOpen(true)}
-                disabled={deleteShipmentsMutation.isPending}
+                onClick={() => setCancelDialogOpen(true)}
+                disabled={cancelShipmentsMutation.isPending}
               >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete {selected.size}
+                <XCircle className="h-4 w-4 mr-2" />
+                Cancel {selected.size}
               </Button>
             </div>
           )}
@@ -262,22 +247,22 @@ const Shipments = () => {
         </CardContent>
       </Card>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-heading">Delete {selected.size} shipment(s)?</AlertDialogTitle>
+            <AlertDialogTitle className="font-heading">Cancel {selected.size} shipment(s)?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the selected shipment(s) and all related data including boxes, invoices, payments, and status history. This action is irreversible.
+              This will mark the selected shipment(s) as "Cancelled". You can change the status back later if needed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Go Back</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => deleteShipmentsMutation.mutate(Array.from(selected))}
-              disabled={deleteShipmentsMutation.isPending}
+              onClick={() => cancelShipmentsMutation.mutate(Array.from(selected))}
+              disabled={cancelShipmentsMutation.isPending}
             >
-              {deleteShipmentsMutation.isPending ? 'Deleting...' : 'Yes, delete all'}
+              {cancelShipmentsMutation.isPending ? 'Cancelling...' : 'Yes, cancel shipments'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

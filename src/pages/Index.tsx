@@ -13,12 +13,13 @@ import { cn } from '@/lib/utils';
 import type { Shipment, ShipmentStatus } from '@/types/shipping';
 
 const statusVariant = (status: ShipmentStatus) => {
-  const map: Record<ShipmentStatus, 'secondary' | 'warning' | 'info' | 'default' | 'success'> = {
+  const map: Record<ShipmentStatus, 'secondary' | 'warning' | 'info' | 'default' | 'success' | 'destructive'> = {
     'Created': 'secondary',
     'In Warehouse': 'warning',
     'Paid': 'info',
     'Shipped': 'default',
     'Delivered': 'success',
+    'Cancelled': 'destructive',
   };
   return map[status] ?? 'outline';
 };

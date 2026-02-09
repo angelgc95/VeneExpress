@@ -11,8 +11,8 @@ import { format } from 'date-fns';
 import type { ShipmentStatus, StatusEvent } from '@/types/shipping';
 
 const statusVariant = (status: ShipmentStatus) => {
-  const map: Record<ShipmentStatus, 'secondary' | 'warning' | 'info' | 'default' | 'success'> = {
-    'Created': 'secondary', 'In Warehouse': 'warning', 'Paid': 'info', 'Shipped': 'default', 'Delivered': 'success',
+  const map: Record<ShipmentStatus, 'secondary' | 'warning' | 'info' | 'default' | 'success' | 'destructive'> = {
+    'Created': 'secondary', 'In Warehouse': 'warning', 'Paid': 'info', 'Shipped': 'default', 'Delivered': 'success', 'Cancelled': 'destructive',
   };
   return map[status] ?? 'outline';
 };
@@ -24,6 +24,7 @@ const statusColor = (status: ShipmentStatus) => {
     'Paid': 'bg-info',
     'Shipped': 'bg-primary',
     'Delivered': 'bg-success',
+    'Cancelled': 'bg-destructive',
   };
   return map[status] ?? 'bg-muted-foreground';
 };
