@@ -10,7 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Plus, Search, Package, RefreshCw } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Plus, Search, Package, RefreshCw, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Shipment, ShipmentStatus } from '@/types/shipping';
 
@@ -31,6 +35,7 @@ const Shipments = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<string>('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const { data: shipments = [] } = useQuery({
     queryKey: ['shipments'],
@@ -57,6 +62,39 @@ const Shipments = () => {
       setSelected(new Set());
       setBulkStatus('');
       toast.success(`${ids.length} shipment(s) updated to "${status}"`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteShipmentsMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      // Delete child records in order
+      await (supabase as any).from('status_events').delete().in('shipment_id', ids);
+      await (supabase as any).from('notification_log').delete().in('shipment_id', ids);
+      await (supabase as any).from('boxes').delete().in('shipment_id', ids);
+
+      const { data: invoices } = await (supabase as any)
+        .from('invoices')
+        .select('id')
+        .in('shipment_id', ids);
+      const invoiceIds = (invoices || []).map((i: any) => i.id);
+
+      if (invoiceIds.length > 0) {
+        await (supabase as any).from('payments').delete().in('invoice_id', invoiceIds);
+        await (supabase as any).from('invoice_line_items').delete().in('invoice_id', invoiceIds);
+        await (supabase as any).from('invoices').delete().in('shipment_id', ids);
+      }
+
+      const { error } = await (supabase as any).from('shipments').delete().in('id', ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['shipments'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      setSelected(new Set());
+      setDeleteDialogOpen(false);
+      toast.success(`${count} shipment(s) and all related data deleted`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -120,6 +158,14 @@ const Shipments = () => {
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Update {selected.size}
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteDialogOpen(true)}
+                disabled={deleteShipmentsMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete {selected.size}
               </Button>
             </div>
           )}
@@ -215,6 +261,27 @@ const Shipments = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading">Delete {selected.size} shipment(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected shipment(s) and all related data including boxes, invoices, payments, and status history. This action is irreversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteShipmentsMutation.mutate(Array.from(selected))}
+              disabled={deleteShipmentsMutation.isPending}
+            >
+              {deleteShipmentsMutation.isPending ? 'Deleting...' : 'Yes, delete all'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
