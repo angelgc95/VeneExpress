@@ -8,13 +8,12 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Layout from "@/components/Layout";
 
-// Eagerly imported – Auth is the landing page for unauthenticated users
-import Auth from "./pages/Auth";
+// Eagerly imported – Home is the public landing page
+import Home from "./pages/Home";
 
-// Lazy-loaded: Dashboard loads after authentication, not needed on initial paint
+// Lazy-loaded routes
+const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Index"));
-
-// Lazy-loaded routes for code splitting (non-initial pages)
 const Customers = lazy(() => import("./pages/Customers"));
 const Shipments = lazy(() => import("./pages/Shipments"));
 const CreateShipment = lazy(() => import("./pages/CreateShipment"));
@@ -23,6 +22,7 @@ const ScanPage = lazy(() => import("./pages/ScanPage"));
 const Settings = lazy(() => import("./pages/Settings"));
 const TrackingPublic = lazy(() => import("./pages/TrackingPublic"));
 const UserApprovals = lazy(() => import("./pages/UserApprovals"));
+const Contact = lazy(() => import("./pages/Contact"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -48,10 +48,12 @@ const App = () => (
         <AuthProvider>
           <Suspense fallback={<PageLoader />}>
             <Routes>
+              <Route path="/" element={<Home />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/contact" element={<Contact />} />
               <Route path="/track/:trackingCode" element={<TrackingPublic />} />
               <Route path="/track" element={<TrackingPublic />} />
-              <Route path="/" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
+              <Route path="/dashboard" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
               <Route path="/customers" element={<ProtectedLayout><Customers /></ProtectedLayout>} />
               <Route path="/shipments" element={<ProtectedLayout><Shipments /></ProtectedLayout>} />
               <Route path="/shipments/new" element={<ProtectedLayout><CreateShipment /></ProtectedLayout>} />

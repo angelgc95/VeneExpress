@@ -21,7 +21,7 @@ const Auth = () => {
   const [signupName, setSignupName] = useState('');
 
   useEffect(() => {
-    if (user) navigate('/', { replace: true });
+    if (user) navigate('/dashboard', { replace: true });
   }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -40,7 +40,7 @@ const Auth = () => {
       toast.error(error.message);
     } else {
       toast.success('Welcome back!');
-      navigate('/');
+      navigate('/dashboard');
     }
   };
 
@@ -59,7 +59,7 @@ const Auth = () => {
       email: signupEmail.trim(),
       password: signupPassword,
       options: {
-        emailRedirectTo: `${window.location.origin}/`,
+        emailRedirectTo: `${window.location.origin}/dashboard`,
         data: { full_name: signupName.trim() },
       },
     });
@@ -72,7 +72,7 @@ const Auth = () => {
       }
     } else {
       toast.success('Account created! You are now logged in.');
-      navigate('/');
+      navigate('/dashboard');
     }
   };
 

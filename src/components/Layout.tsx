@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard, Package, Users, ScanLine, Settings, LogOut,
@@ -10,7 +12,7 @@ import logo from '@/assets/logo-optimized.webp';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
+  { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { label: 'Shipments', icon: Package, path: '/shipments' },
   { label: 'Customers', icon: Users, path: '/customers' },
   { label: 'Scan', icon: ScanLine, path: '/scan' },
@@ -25,6 +27,20 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const { user, role, isAdmin, signOut } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const { data: pendingCount = 0 } = useQuery({
+    queryKey: ['pending-approvals-count'],
+    queryFn: async () => {
+      const { count, error } = await (supabase as any)
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('approved', false);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: isAdmin,
+    refetchInterval: 30000,
+  });
 
   const allNav = [...navItems, ...(isAdmin ? adminNavItems : [])];
 
@@ -48,9 +64,10 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
         <nav className="flex-1 px-3 py-4 space-y-1">
           {allNav.map((item) => {
-            const isActive = item.path === '/'
-              ? location.pathname === '/'
+            const isActive = item.path === '/dashboard'
+              ? location.pathname === '/dashboard'
               : location.pathname.startsWith(item.path);
+            const showBadge = item.path === '/admin/approvals' && pendingCount > 0;
             return (
               <Link
                 key={item.path}
@@ -64,7 +81,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 )}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {showBadge && (
+                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent text-accent-foreground text-xs font-bold px-1.5">
+                    {pendingCount}
+                  </span>
+                )}
               </Link>
             );
           })}
