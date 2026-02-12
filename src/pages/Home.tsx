@@ -97,7 +97,7 @@ const PricingEstimator = () => {
 const Home = () => (
   <div className="min-h-screen flex flex-col items-center justify-center bg-background relative px-4">
     <div className="flex flex-col items-center gap-8">
-      <img src={logo} alt="VeneExpress" className="h-28 w-28 object-contain" />
+      <img src={logo} alt="VeneExpress" className="h-44 w-44 object-contain" />
       <h1 className="text-3xl font-heading font-bold tracking-tight text-foreground">
         VeneExpress
       </h1>
