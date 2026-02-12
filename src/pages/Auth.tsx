@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import logo from '@/assets/logo-optimized.webp';
+import logo from '@/assets/logo.png';
 
 const Auth = () => {
   const navigate = useNavigate();

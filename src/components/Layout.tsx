@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Package, Users, ScanLine, Settings, LogOut,
   Menu, ShieldCheck
 } from 'lucide-react';
-import logo from '@/assets/logo-optimized.webp';
+import logo from '@/assets/logo.png';
 import { cn } from '@/lib/utils';
 
 const navItems = [
