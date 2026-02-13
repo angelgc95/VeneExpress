@@ -108,30 +108,19 @@ const ScanPage = () => {
         formatsToSupport: [
           Html5QrcodeSupportedFormats.CODE_128,
           Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.CODE_93,
           Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
           Html5QrcodeSupportedFormats.QR_CODE,
-          Html5QrcodeSupportedFormats.DATA_MATRIX,
         ],
         verbose: false,
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true,
-        },
       });
       scannerRef.current = html5QrCode;
 
       await html5QrCode.start(
         { facingMode: 'environment' },
         {
-          fps: 15,
-          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-            const w = Math.floor(viewfinderWidth * 0.8);
-            const h = Math.floor(viewfinderHeight * 0.3);
-            return { width: Math.max(w, 150), height: Math.max(h, 60) };
-          },
+          fps: 10,
+          qrbox: { width: 300, height: 150 },
+          disableFlip: false,
         },
         (decodedText: string) => {
           setQuery(decodedText);
