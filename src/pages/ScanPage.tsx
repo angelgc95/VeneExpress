@@ -17,10 +17,16 @@ const statusVariant = (status: ShipmentStatus) => {
   return map[status] ?? 'secondary';
 };
 
+// Check if native BarcodeDetector is available
+const hasBarcodeDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
+
 const ScanPage = () => {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
-  const scannerRef = useRef<any>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const animFrameRef = useRef<number>(0);
+  const detectorRef = useRef<any>(null);
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<{
     shipment: Shipment & { customers: { first_name: string; last_name: string } };
@@ -33,15 +39,10 @@ const ScanPage = () => {
     inputRef.current?.focus();
   }, []);
 
-  // Cleanup scanner on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (scannerRef.current) {
-        try {
-          scannerRef.current.stop().catch(() => {});
-        } catch {}
-        scannerRef.current = null;
-      }
+      stopScanner();
     };
   }, []);
 
@@ -52,7 +53,6 @@ const ScanPage = () => {
     setResult(null);
 
     try {
-      // Try as box ID first
       const { data: box } = await (supabase as any)
         .from('boxes')
         .select('*')
@@ -72,7 +72,6 @@ const ScanPage = () => {
         }
       }
 
-      // Try as shipment ID
       const { data: shipment } = await (supabase as any)
         .from('shipments')
         .select('*, customers(first_name, last_name)')
@@ -92,45 +91,33 @@ const ScanPage = () => {
 
   const startScanner = async () => {
     try {
-      const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode');
-      
       setScanning(true);
 
-      // Wait for DOM element to render
-      await new Promise(r => setTimeout(r, 300));
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      });
+      streamRef.current = stream;
 
-      const scanRegion = document.getElementById('scanner-region');
-      if (!scanRegion) {
-        throw new Error('Scanner region not found');
+      // Wait for video element to render
+      await new Promise(r => setTimeout(r, 100));
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
       }
 
-      const html5QrCode = new Html5Qrcode('scanner-region', {
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.QR_CODE,
-        ],
-        verbose: false,
-      });
-      scannerRef.current = html5QrCode;
-
-      await html5QrCode.start(
-        { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: { width: 300, height: 150 },
-          disableFlip: false,
-        },
-        (decodedText: string) => {
-          setQuery(decodedText);
-          stopScanner();
-          handleSearch(decodedText);
-        },
-        () => {} // ignore errors during scanning
-      );
+      if (hasBarcodeDetector) {
+        // Use native BarcodeDetector API
+        detectorRef.current = new (window as any).BarcodeDetector({
+          formats: ['code_128', 'code_39', 'ean_13', 'qr_code'],
+        });
+        detectLoop();
+      } else {
+        // Fallback: use html5-qrcode on a canvas from the video
+        startHtml5QrcodeFallback();
+      }
     } catch (err: any) {
-      setScanning(false);
+      stopScanner();
       if (err?.name === 'NotAllowedError' || err?.message?.includes('Permission')) {
         toast.error('Camera permission denied. Please allow camera access.');
       } else {
@@ -139,14 +126,101 @@ const ScanPage = () => {
     }
   };
 
-  const stopScanner = () => {
-    if (scannerRef.current) {
+  const detectLoop = () => {
+    if (!videoRef.current || !detectorRef.current) return;
+
+    const detect = async () => {
+      if (!videoRef.current || videoRef.current.readyState < 2 || !detectorRef.current) {
+        animFrameRef.current = requestAnimationFrame(detect);
+        return;
+      }
       try {
-        scannerRef.current.stop().catch(() => {});
+        const barcodes = await detectorRef.current.detect(videoRef.current);
+        if (barcodes.length > 0) {
+          const value = barcodes[0].rawValue;
+          if (value) {
+            setQuery(value);
+            stopScanner();
+            handleSearch(value);
+            return;
+          }
+        }
       } catch {}
-      scannerRef.current = null;
+      animFrameRef.current = requestAnimationFrame(detect);
+    };
+    animFrameRef.current = requestAnimationFrame(detect);
+  };
+
+  const startHtml5QrcodeFallback = async () => {
+    // Fallback for browsers without BarcodeDetector (e.g. Firefox)
+    try {
+      const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode');
+
+      // Create a hidden element for html5-qrcode
+      const el = document.createElement('div');
+      el.id = 'qr-fallback-region';
+      el.style.display = 'none';
+      document.body.appendChild(el);
+
+      const scanner = new Html5Qrcode('qr-fallback-region', {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.QR_CODE,
+        ],
+        verbose: false,
+      });
+
+      // Scan from video frames using canvas
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d')!;
+
+      const scanFrame = async () => {
+        if (!videoRef.current || !scanning) return;
+        const video = videoRef.current;
+        if (video.readyState < 2) {
+          animFrameRef.current = requestAnimationFrame(scanFrame);
+          return;
+        }
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        try {
+          const result = await scanner.scanFileV2(
+            new File([await new Promise<Blob>((res) => canvas.toBlob(b => res(b!), 'image/png'))], 'frame.png'),
+            false
+          );
+          if (result?.decodedText) {
+            setQuery(result.decodedText);
+            stopScanner();
+            handleSearch(result.decodedText);
+            el.remove();
+            return;
+          }
+        } catch {}
+        setTimeout(() => {
+          animFrameRef.current = requestAnimationFrame(scanFrame);
+        }, 200); // scan every 200ms for fallback
+      };
+      animFrameRef.current = requestAnimationFrame(scanFrame);
+    } catch {
+      toast.error('Scanner not supported on this browser.');
     }
+  };
+
+  const stopScanner = () => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = 0;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    detectorRef.current = null;
     setScanning(false);
+    // Cleanup fallback element
+    document.getElementById('qr-fallback-region')?.remove();
   };
 
   return (
@@ -187,8 +261,18 @@ const ScanPage = () => {
             </Button>
           ) : (
             <div className="space-y-2">
-              <div className="relative rounded-lg overflow-hidden bg-black">
-                <div id="scanner-region" className="w-full" />
+              <div className="relative rounded-lg overflow-hidden bg-black aspect-[4/3]">
+                <video
+                  ref={videoRef}
+                  className="w-full h-full object-cover"
+                  playsInline
+                  muted
+                  autoPlay
+                />
+                {/* Scan guide overlay */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-[75%] h-[35%] border-2 border-white/70 rounded-md" />
+                </div>
                 <Button
                   variant="ghost"
                   size="icon"
