@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Search, Clock, Package } from 'lucide-react';
-import logo from '@/assets/logo.png';
+import logo from '@/assets/logo-optimized.webp';
 import { format } from 'date-fns';
 import type { ShipmentStatus, StatusEvent } from '@/types/shipping';
 
