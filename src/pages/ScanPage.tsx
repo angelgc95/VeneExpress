@@ -123,19 +123,9 @@ const ScanPage = () => {
       });
       scannerRef.current = html5QrCode;
 
-      // Use a responsive qrbox function that adapts to the video size
-      const qrboxFunction = (viewfinderWidth: number, viewfinderHeight: number) => {
-        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-        // Use 80% of the smaller dimension for width, 40% for height (landscape barcode)
-        return {
-          width: Math.floor(Math.min(viewfinderWidth * 0.8, 350)),
-          height: Math.floor(Math.min(viewfinderHeight * 0.4, 150)),
-        };
-      };
-
       await html5QrCode.start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: qrboxFunction },
+        { fps: 15, qrbox: { width: 280, height: 120 }, aspectRatio: 1.333 },
         (decodedText: string) => {
           setQuery(decodedText);
           stopScanner();
