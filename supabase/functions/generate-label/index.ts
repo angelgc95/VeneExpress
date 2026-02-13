@@ -47,13 +47,20 @@ function code128B(text: string): string {
   let bits = "";
   for (const idx of indices) bits += patterns[idx];
 
-  const barWidth = 2;
-  const height = 50;
-  const width = bits.length * barWidth;
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+  // Use wider bars for better thermal print scanning
+  const barWidth = 3;
+  const height = 60;
+  // Add quiet zone (10x bar width on each side per Code 128 spec)
+  const quietZone = barWidth * 10;
+  const barcodeWidth = bits.length * barWidth;
+  const totalWidth = barcodeWidth + quietZone * 2;
+  
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${height}" viewBox="0 0 ${totalWidth} ${height}">`;
+  // White background for clean scanning
+  svg += `<rect x="0" y="0" width="${totalWidth}" height="${height}" fill="#fff"/>`;
   for (let i = 0; i < bits.length; i++) {
     if (bits[i] === "1") {
-      svg += `<rect x="${i * barWidth}" y="0" width="${barWidth}" height="${height}" fill="#000"/>`;
+      svg += `<rect x="${quietZone + i * barWidth}" y="0" width="${barWidth}" height="${height}" fill="#000"/>`;
     }
   }
   svg += `</svg>`;
