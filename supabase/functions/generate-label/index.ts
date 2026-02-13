@@ -48,7 +48,7 @@ function code128B(text: string): string {
   for (const idx of indices) bits += patterns[idx];
 
   const barWidth = 2;
-  const height = 60;
+  const height = 50;
   const width = bits.length * barWidth;
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
   for (let i = 0; i < bits.length; i++) {
@@ -70,14 +70,13 @@ function escapeHtml(unsafe: any): string {
     .replace(/'/g, '&#039;');
 }
 
-function buildBarcodeLabel(box: any, shipment: any): string {
+function buildBarcodeLabel(box: any, _shipment: any): string {
   const barcodeSvg = code128B(box.box_id);
   return `
-    <div class="label">
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;">
-        <div style="font-size:16px;font-weight:700;font-family:monospace;letter-spacing:1px">${escapeHtml(shipment.shipment_id)}</div>
+    <div class="label barcode-label">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;">
         ${barcodeSvg}
-        <div style="font-family:monospace;font-size:11px;letter-spacing:1px">${escapeHtml(box.box_id)}</div>
+        <div style="font-family:monospace;font-size:10px;letter-spacing:1px;font-weight:600">${escapeHtml(box.box_id)}</div>
       </div>
     </div>
   `;
@@ -85,67 +84,60 @@ function buildBarcodeLabel(box: any, shipment: any): string {
 
 function buildDetailLabel(box: any, shipment: any, senderAddr: any, receiverAddr: any): string {
   const vol = parseFloat(box.volume_ft3 || 0).toFixed(2);
-  const barcodeSvg = code128B(box.box_id);
 
   const fmtAddr = (a: any) => {
-    if (!a) return "<p>N/A</p>";
+    if (!a) return "<p style='margin:0;font-size:8px'>N/A</p>";
     return `
-      <p style="font-weight:600;margin:0">${escapeHtml(a.name)}</p>
-      ${a.phone ? `<p style="margin:0;font-size:10px">${escapeHtml(a.phone)}</p>` : ""}
-      <p style="margin:0;font-size:10px">${escapeHtml(a.line1)}</p>
-      ${a.line2 ? `<p style="margin:0;font-size:10px">${escapeHtml(a.line2)}</p>` : ""}
-      <p style="margin:0;font-size:10px">${escapeHtml(a.city)}${a.state ? ", " + escapeHtml(a.state) : ""} ${escapeHtml(a.postal_code || "")}</p>
-      <p style="margin:0;font-size:10px;font-weight:600">${escapeHtml(a.country)}</p>
+      <p style="font-weight:600;margin:0;font-size:9px">${escapeHtml(a.name)}</p>
+      ${a.phone ? `<p style="margin:0;font-size:8px">${escapeHtml(a.phone)}</p>` : ""}
+      <p style="margin:0;font-size:8px">${escapeHtml(a.line1)}</p>
+      ${a.line2 ? `<p style="margin:0;font-size:8px">${escapeHtml(a.line2)}</p>` : ""}
+      <p style="margin:0;font-size:8px">${escapeHtml(a.city)}${a.state ? ", " + escapeHtml(a.state) : ""} ${escapeHtml(a.postal_code || "")}</p>
+      <p style="margin:0;font-size:8px;font-weight:600">${escapeHtml(a.country)}</p>
     `;
   };
 
   return `
-    <div class="label">
+    <div class="label detail-label">
       <!-- IDs -->
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
         <div>
-          <div style="font-size:8px;color:#666;text-transform:uppercase">Shipment</div>
-          <div style="font-size:12px;font-weight:700;font-family:monospace">${escapeHtml(shipment.shipment_id)}</div>
+          <div style="font-size:7px;color:#666;text-transform:uppercase">Shipment</div>
+          <div style="font-size:10px;font-weight:700;font-family:monospace">${escapeHtml(shipment.shipment_id)}</div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:8px;color:#666;text-transform:uppercase">Box</div>
-          <div style="font-size:12px;font-weight:700;font-family:monospace">${escapeHtml(box.box_id)}</div>
+          <div style="font-size:7px;color:#666;text-transform:uppercase">Box</div>
+          <div style="font-size:10px;font-weight:700;font-family:monospace">${escapeHtml(box.box_id)}</div>
         </div>
       </div>
 
       <!-- Service badge -->
-      <div style="text-align:center;margin-bottom:6px;">
-        <span style="background:${shipment.service_type === "AIR" ? "#3b82f6" : "#64748b"};color:#fff;padding:2px 10px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:1px">${shipment.service_type}</span>
+      <div style="text-align:center;margin-bottom:3px;">
+        <span style="background:${shipment.service_type === "AIR" ? "#3b82f6" : "#64748b"};color:#fff;padding:1px 8px;border-radius:3px;font-size:9px;font-weight:700;letter-spacing:1px">${shipment.service_type}</span>
       </div>
 
       <!-- Addresses -->
-      <div style="display:flex;gap:6px;margin-bottom:6px;flex:1;">
-        <div style="flex:1;border:1px solid #ccc;border-radius:3px;padding:4px;">
-          <div style="font-size:8px;color:#666;text-transform:uppercase;margin-bottom:2px">From</div>
+      <div style="display:flex;gap:4px;margin-bottom:3px;flex:1;">
+        <div style="flex:1;border:1px solid #ccc;border-radius:2px;padding:3px;">
+          <div style="font-size:7px;color:#666;text-transform:uppercase;margin-bottom:1px">From</div>
           ${fmtAddr(senderAddr)}
         </div>
-        <div style="flex:1;border:1px solid #ccc;border-radius:3px;padding:4px;">
-          <div style="font-size:8px;color:#666;text-transform:uppercase;margin-bottom:2px">To</div>
+        <div style="flex:1;border:1px solid #ccc;border-radius:2px;padding:3px;">
+          <div style="font-size:7px;color:#666;text-transform:uppercase;margin-bottom:1px">To</div>
           ${fmtAddr(receiverAddr)}
         </div>
       </div>
 
       <!-- Dimensions -->
-      <div style="border:1px solid #ccc;border-radius:3px;padding:4px;margin-bottom:6px;display:flex;justify-content:space-around;text-align:center;">
+      <div style="border:1px solid #ccc;border-radius:2px;padding:3px;display:flex;justify-content:space-around;text-align:center;">
         <div>
-          <div style="font-size:8px;color:#666">DIMENSIONS</div>
-          <div style="font-weight:600;font-size:11px">${parseFloat(box.length_in)}" × ${parseFloat(box.width_in)}" × ${parseFloat(box.height_in)}"</div>
+          <div style="font-size:7px;color:#666">DIMENSIONS</div>
+          <div style="font-weight:600;font-size:9px">${parseFloat(box.length_in)}" × ${parseFloat(box.width_in)}" × ${parseFloat(box.height_in)}"</div>
         </div>
         <div>
-          <div style="font-size:8px;color:#666">VOLUME</div>
-          <div style="font-weight:700;font-size:12px">${vol} ft³</div>
+          <div style="font-size:7px;color:#666">VOLUME</div>
+          <div style="font-weight:700;font-size:10px">${vol} ft³</div>
         </div>
-      </div>
-
-      <!-- Barcode -->
-      <div style="text-align:center;margin-top:auto;">
-        ${barcodeSvg}
-        <div style="font-family:monospace;font-size:10px;margin-top:2px;letter-spacing:1px">${escapeHtml(box.box_id)}</div>
       </div>
     </div>
   `;
@@ -236,9 +228,13 @@ serve(async (req) => {
       receiverAddr = receiverRes.data;
     }
 
+    const isBarcode = labelType === "barcode";
+    const labelHeight = isBarcode ? "25mm" : "50mm";
+    const labelClass = isBarcode ? "barcode-label" : "detail-label";
+
     const labelsHtml = (boxes || [])
       .map((box: any) =>
-        labelType === "barcode"
+        isBarcode
           ? buildBarcodeLabel(box, shipment)
           : buildDetailLabel(box, shipment, senderAddr, receiverAddr)
       )
@@ -250,21 +246,24 @@ serve(async (req) => {
       <head>
         <meta charset="utf-8"/>
         <style>
-          @page { size: 62mm 100mm; margin: 0; }
+          @page { size: 62mm ${labelHeight}; margin: 0; }
+          * { box-sizing: border-box; }
           body { margin: 0; padding: 0; }
           .label {
             width: 62mm;
-            height: 100mm;
-            padding: 8px;
-            font-family: Arial, sans-serif;
-            font-size: 11px;
+            height: ${labelHeight};
+            padding: 4px 6px;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 9px;
             box-sizing: border-box;
             page-break-after: always;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
           }
           .label:last-child { page-break-after: auto; }
           @media print {
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .label { page-break-after: always; }
             .label:last-child { page-break-after: auto; }
           }

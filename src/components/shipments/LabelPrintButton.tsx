@@ -7,6 +7,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -16,6 +18,8 @@ interface LabelPrintButtonProps {
   label?: string;
   variant?: 'default' | 'outline' | 'ghost' | 'secondary';
   size?: 'default' | 'sm' | 'lg' | 'icon';
+  /** If true, show only single-box options (no "All boxes") */
+  singleBox?: boolean;
 }
 
 const LabelPrintButton = ({
@@ -24,6 +28,7 @@ const LabelPrintButton = ({
   label = 'Print Labels',
   variant = 'outline',
   size = 'sm',
+  singleBox = false,
 }: LabelPrintButtonProps) => {
   const [loading, setLoading] = useState(false);
 
@@ -37,7 +42,9 @@ const LabelPrintButton = ({
       if (error) throw error;
       if (!data?.html) throw new Error('No label HTML returned');
 
-      const printWindow = window.open('', '_blank', 'width=300,height=500');
+      const w = labelType === 'barcode' ? 280 : 280;
+      const h = labelType === 'barcode' ? 200 : 350;
+      const printWindow = window.open('', '_blank', `width=${w},height=${h}`);
       if (!printWindow) {
         toast.error('Pop-up blocked. Please allow pop-ups for this site.');
         return;
@@ -52,7 +59,8 @@ const LabelPrintButton = ({
         }, 300);
       };
 
-      toast.success(`${data.count} ${labelType} label(s) ready to print`);
+      const typeLabel = labelType === 'barcode' ? 'barcode' : 'detail';
+      toast.success(`${data.count} ${typeLabel} label(s) ready to print`);
     } catch (e: any) {
       toast.error(e.message || 'Failed to generate labels');
     } finally {
@@ -69,11 +77,14 @@ const LabelPrintButton = ({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => handlePrint('barcode')}>
-          Barcode Only
-        </DropdownMenuItem>
+        <DropdownMenuLabel className="text-xs text-muted-foreground">
+          {singleBox ? 'This Box' : 'All Boxes'}
+        </DropdownMenuLabel>
         <DropdownMenuItem onClick={() => handlePrint('detail')}>
-          Full Details
+          📋 Details Label
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handlePrint('barcode')}>
+          ▮▮▮ Barcode Label
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
