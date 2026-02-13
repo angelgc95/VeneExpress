@@ -92,30 +92,51 @@ const ScanPage = () => {
 
   const startScanner = async () => {
     try {
-      const { Html5Qrcode } = await import('html5-qrcode');
-      const { Html5QrcodeSupportedFormats } = await import('html5-qrcode');
+      const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode');
       
       setScanning(true);
 
       // Wait for DOM element to render
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 300));
+
+      const scanRegion = document.getElementById('scanner-region');
+      if (!scanRegion) {
+        throw new Error('Scanner region not found');
+      }
 
       const html5QrCode = new Html5Qrcode('scanner-region', {
         formatsToSupport: [
           Html5QrcodeSupportedFormats.CODE_128,
           Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93,
           Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
           Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.DATA_MATRIX,
         ],
         verbose: false,
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true,
+        },
       });
       scannerRef.current = html5QrCode;
 
+      // Use a responsive qrbox function that adapts to the video size
+      const qrboxFunction = (viewfinderWidth: number, viewfinderHeight: number) => {
+        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+        // Use 80% of the smaller dimension for width, 40% for height (landscape barcode)
+        return {
+          width: Math.floor(Math.min(viewfinderWidth * 0.8, 350)),
+          height: Math.floor(Math.min(viewfinderHeight * 0.4, 150)),
+        };
+      };
+
       await html5QrCode.start(
         { facingMode: 'environment' },
-        { fps: 15, qrbox: { width: 280, height: 120 }, aspectRatio: 1.0, disableFlip: false },
+        { fps: 10, qrbox: qrboxFunction },
         (decodedText: string) => {
-          // Auto-fill and search
           setQuery(decodedText);
           stopScanner();
           handleSearch(decodedText);
