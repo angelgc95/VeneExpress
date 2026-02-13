@@ -125,7 +125,14 @@ const ScanPage = () => {
 
       await html5QrCode.start(
         { facingMode: 'environment' },
-        { fps: 15, qrbox: { width: 280, height: 120 }, aspectRatio: 1.333 },
+        {
+          fps: 15,
+          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+            const w = Math.floor(viewfinderWidth * 0.8);
+            const h = Math.floor(viewfinderHeight * 0.3);
+            return { width: Math.max(w, 150), height: Math.max(h, 60) };
+          },
+        },
         (decodedText: string) => {
           setQuery(decodedText);
           stopScanner();
