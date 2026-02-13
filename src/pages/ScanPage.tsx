@@ -28,6 +28,7 @@ const ScanPage = () => {
   const animFrameRef = useRef<number>(0);
   const detectorRef = useRef<any>(null);
   const [query, setQuery] = useState('');
+  const [scanStatus, setScanStatus] = useState('');
   const [result, setResult] = useState<{
     shipment: Shipment & { customers: { first_name: string; last_name: string } };
     box?: Box;
@@ -107,13 +108,15 @@ const ScanPage = () => {
       }
 
       if (hasBarcodeDetector) {
-        // Use native BarcodeDetector API
+        setScanStatus('Using native scanner...');
+        console.log('[Scanner] Using native BarcodeDetector');
         detectorRef.current = new (window as any).BarcodeDetector({
           formats: ['code_128', 'code_39', 'ean_13', 'qr_code'],
         });
         detectLoop();
       } else {
-        // Fallback: use html5-qrcode on a canvas from the video
+        setScanStatus('Using fallback scanner...');
+        console.log('[Scanner] BarcodeDetector not available, using fallback');
         startHtml5QrcodeFallback();
       }
     } catch (err: any) {
@@ -128,6 +131,7 @@ const ScanPage = () => {
 
   const detectLoop = () => {
     if (!videoRef.current || !detectorRef.current) return;
+    let frameCount = 0;
 
     const detect = async () => {
       if (!videoRef.current || videoRef.current.readyState < 2 || !detectorRef.current) {
@@ -136,16 +140,25 @@ const ScanPage = () => {
       }
       try {
         const barcodes = await detectorRef.current.detect(videoRef.current);
+        frameCount++;
+        if (frameCount % 30 === 0) {
+          console.log(`[Scanner] Scanned ${frameCount} frames, no detection yet`);
+          setScanStatus(`Scanning... (${frameCount} frames)`);
+        }
         if (barcodes.length > 0) {
           const value = barcodes[0].rawValue;
+          console.log('[Scanner] Detected:', value, 'format:', barcodes[0].format);
           if (value) {
+            toast.success(`Scanned: ${value}`);
             setQuery(value);
             stopScanner();
             handleSearch(value);
             return;
           }
         }
-      } catch {}
+      } catch (err) {
+        console.error('[Scanner] Detection error:', err);
+      }
       animFrameRef.current = requestAnimationFrame(detect);
     };
     animFrameRef.current = requestAnimationFrame(detect);
@@ -282,7 +295,9 @@ const ScanPage = () => {
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="text-xs text-center text-muted-foreground">Point camera at barcode</p>
+              <p className="text-xs text-center text-muted-foreground">
+                {scanStatus || 'Point camera at barcode'}
+              </p>
             </div>
           )}
         </CardContent>
