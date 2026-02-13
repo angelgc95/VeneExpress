@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Phone, Mail, MapPin } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import logo from '@/assets/logo.png';
 
@@ -17,21 +17,31 @@ const Contact = () => (
 
       <Card>
         <CardHeader>
-          <CardTitle className="font-heading">Get in Touch</CardTitle>
+          <CardTitle className="font-heading">VeneExpress Katy</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          <a href="tel:+1234567890" className="flex items-center gap-3 text-foreground hover:text-accent transition-colors">
-            <Phone className="h-5 w-5 text-accent shrink-0" />
-            <span>+1 (234) 567-890</span>
-          </a>
-          <a href="mailto:info@veneexpress.com" className="flex items-center gap-3 text-foreground hover:text-accent transition-colors">
-            <Mail className="h-5 w-5 text-accent shrink-0" />
-            <span>info@veneexpress.com</span>
-          </a>
           <div className="flex items-start gap-3 text-foreground">
             <MapPin className="h-5 w-5 text-accent shrink-0 mt-0.5" />
-            <span>Miami, FL, United States</span>
+            <span>21110 N Summitry Cir, Katy, TX 77449, Texas</span>
           </div>
+          <a href="tel:8017591022" className="flex items-center gap-3 text-foreground hover:text-accent transition-colors">
+            <Phone className="h-5 w-5 text-accent shrink-0" />
+            <span>8017591022</span>
+          </a>
+          <a href="mailto:venexpresshipping@hotmail.com" className="flex items-center gap-3 text-foreground hover:text-accent transition-colors">
+            <Mail className="h-5 w-5 text-accent shrink-0" />
+            <span>venexpresshipping@hotmail.com</span>
+          </a>
+          <a
+            href="https://maps.app.goo.gl/5pto1wnZBqt7baJD8?g_st=aw"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button variant="outline" className="w-full gap-2 mt-2">
+              <ExternalLink className="h-4 w-4" />
+              Open in Google Maps
+            </Button>
+          </a>
         </CardContent>
       </Card>
     </div>
