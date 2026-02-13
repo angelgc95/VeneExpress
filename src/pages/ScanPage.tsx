@@ -93,18 +93,27 @@ const ScanPage = () => {
   const startScanner = async () => {
     try {
       const { Html5Qrcode } = await import('html5-qrcode');
+      const { Html5QrcodeSupportedFormats } = await import('html5-qrcode');
       
       setScanning(true);
 
       // Wait for DOM element to render
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 200));
 
-      const html5QrCode = new Html5Qrcode('scanner-region');
+      const html5QrCode = new Html5Qrcode('scanner-region', {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.QR_CODE,
+        ],
+        verbose: false,
+      });
       scannerRef.current = html5QrCode;
 
       await html5QrCode.start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 250, height: 100 } },
+        { fps: 15, qrbox: { width: 280, height: 120 }, aspectRatio: 1.0, disableFlip: false },
         (decodedText: string) => {
           // Auto-fill and search
           setQuery(decodedText);
