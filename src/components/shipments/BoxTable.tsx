@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Plus, Trash2, DollarSign } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import LabelPrintButton from '@/components/shipments/LabelPrintButton';
 import type { Box, PricingRule, ServiceType } from '@/types/shipping';
 
 interface BoxTableProps {
@@ -196,7 +197,7 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
             <TableHead>Volume (ft³)</TableHead>
             <TableHead>Rate</TableHead>
             <TableHead>Price</TableHead>
-            {isStaff && !isFinalized && <TableHead className="w-20">Actions</TableHead>}
+            <TableHead className="w-28">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -214,33 +215,43 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
                   <span className="ml-1 text-xs text-warning" title={box.override_reason || ''}>⚡</span>
                 )}
               </TableCell>
-              {isStaff && !isFinalized && (
-                <TableCell>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      title="Override price"
-                      onClick={() => {
-                        setOverrideBox(box);
-                        setOverridePrice(String(box.final_price));
-                        setOverrideReason(box.override_reason || '');
-                      }}
-                    >
-                      <DollarSign className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive"
-                      onClick={() => deleteMutation.mutate(box.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </TableCell>
-              )}
+              <TableCell>
+                <div className="flex gap-1">
+                  <LabelPrintButton
+                    shipmentId={shipmentId}
+                    boxIds={[box.id]}
+                    label=""
+                    size="icon"
+                    variant="ghost"
+                    singleBox
+                  />
+                  {isStaff && !isFinalized && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        title="Override price"
+                        onClick={() => {
+                          setOverrideBox(box);
+                          setOverridePrice(String(box.final_price));
+                          setOverrideReason(box.override_reason || '');
+                        }}
+                      >
+                        <DollarSign className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive"
+                        onClick={() => deleteMutation.mutate(box.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </TableCell>
             </TableRow>
           ))}
           {boxes.length === 0 && (
@@ -257,7 +268,7 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
               <TableCell>{totalVolume.toFixed(2)}</TableCell>
               <TableCell />
               <TableCell className="text-lg">${total.toFixed(2)}</TableCell>
-              {isStaff && !isFinalized && <TableCell />}
+              <TableCell />
             </TableRow>
           )}
         </TableBody>

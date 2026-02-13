@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { ScanLine, Package, ArrowRight } from 'lucide-react';
+import { ScanLine, Package, ArrowRight, Camera, X } from 'lucide-react';
 import type { Shipment, Box, ShipmentStatus } from '@/types/shipping';
 
 const statusVariant = (status: ShipmentStatus) => {
@@ -20,19 +20,33 @@ const statusVariant = (status: ShipmentStatus) => {
 const ScanPage = () => {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+  const scannerRef = useRef<any>(null);
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<{
     shipment: Shipment & { customers: { first_name: string; last_name: string } };
     box?: Box;
   } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  const handleScan = async () => {
-    const q = query.trim();
+  // Cleanup scanner on unmount
+  useEffect(() => {
+    return () => {
+      if (scannerRef.current) {
+        try {
+          scannerRef.current.stop().catch(() => {});
+        } catch {}
+        scannerRef.current = null;
+      }
+    };
+  }, []);
+
+  const handleSearch = useCallback(async (q: string) => {
+    q = q.trim();
     if (!q) return;
     setLoading(true);
     setResult(null);
@@ -74,6 +88,49 @@ const ScanPage = () => {
       toast.error('Search failed');
     }
     setLoading(false);
+  }, []);
+
+  const startScanner = async () => {
+    try {
+      const { Html5Qrcode } = await import('html5-qrcode');
+      
+      setScanning(true);
+
+      // Wait for DOM element to render
+      await new Promise(r => setTimeout(r, 100));
+
+      const html5QrCode = new Html5Qrcode('scanner-region');
+      scannerRef.current = html5QrCode;
+
+      await html5QrCode.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 100 } },
+        (decodedText: string) => {
+          // Auto-fill and search
+          setQuery(decodedText);
+          stopScanner();
+          handleSearch(decodedText);
+        },
+        () => {} // ignore errors during scanning
+      );
+    } catch (err: any) {
+      setScanning(false);
+      if (err?.name === 'NotAllowedError' || err?.message?.includes('Permission')) {
+        toast.error('Camera permission denied. Please allow camera access.');
+      } else {
+        toast.error('Camera not available. Use manual input instead.');
+      }
+    }
+  };
+
+  const stopScanner = () => {
+    if (scannerRef.current) {
+      try {
+        scannerRef.current.stop().catch(() => {});
+      } catch {}
+      scannerRef.current = null;
+    }
+    setScanning(false);
   };
 
   return (
@@ -84,7 +141,7 @@ const ScanPage = () => {
       </div>
 
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-6 space-y-4">
           <div className="flex gap-2">
             <div className="relative flex-1">
               <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -94,14 +151,40 @@ const ScanPage = () => {
                 placeholder="Scan or type ID..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleScan()}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch(query)}
                 autoFocus
               />
             </div>
-            <Button className="h-14 px-6 bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleScan} disabled={loading}>
+            <Button className="h-14 px-6 bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => handleSearch(query)} disabled={loading}>
               {loading ? '...' : 'Go'}
             </Button>
           </div>
+
+          {!scanning ? (
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              onClick={startScanner}
+            >
+              <Camera className="h-4 w-4" />
+              Scan with Camera
+            </Button>
+          ) : (
+            <div className="space-y-2">
+              <div className="relative rounded-lg overflow-hidden bg-black">
+                <div id="scanner-region" className="w-full" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 bg-background/80 hover:bg-background z-10"
+                  onClick={stopScanner}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-center text-muted-foreground">Point camera at barcode</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
