@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Phone, Mail, MapPin, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import logo from '@/assets/logo.png';
+import logo from '@/assets/logo-optimized.webp';
 
 const Contact = () => (
   <div className="min-h-screen bg-background flex flex-col items-center px-4 py-12">
