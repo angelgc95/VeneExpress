@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import logo from '@/assets/logo-optimized.webp';
+import logo from '@/assets/logo.png';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -81,7 +81,7 @@ const Auth = () => {
       <Card className="w-full max-w-md animate-fade-in">
         <CardHeader className="text-center space-y-3">
           <div className="flex items-center justify-center">
-            <img src={logo} alt="VeneExpress Shipping" className="h-16 w-16 object-contain" />
+            <img src={logo} alt="VeneExpress Shipping" className="h-20 w-20 object-contain" style={{ background: 'transparent' }} />
           </div>
           <h1 className="text-2xl font-bold font-heading">VeneExpress Shipping</h1>
           <CardDescription>Carrier management system</CardDescription>
