@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { Plus, Trash2, DollarSign } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import LabelPrintButton from '@/components/shipments/LabelPrintButton';
-import type { Box, PricingRule, ServiceType } from '@/types/shipping';
+import type { Box, PricingRule, ServiceType, StandardItem } from '@/types/shipping';
 
 interface BoxTableProps {
   shipmentId: string;
@@ -24,6 +24,8 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
   const queryClient = useQueryClient();
   const { isStaff } = useAuth();
   const [newBox, setNewBox] = useState({ length: '', width: '', height: '' });
+  const [customItemName, setCustomItemName] = useState('');
+  const [customItemPrice, setCustomItemPrice] = useState('');
   const [overrideBox, setOverrideBox] = useState<Box | null>(null);
   const [overridePrice, setOverridePrice] = useState('');
   const [overrideReason, setOverrideReason] = useState('');
@@ -56,6 +58,24 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
     },
   });
 
+  const { data: standardItems = [] } = useQuery({
+    queryKey: ['standard-items'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('standard_items')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order');
+      if (error) throw error;
+      return data as StandardItem[];
+    },
+  });
+
+  const nextBoxId = () => {
+    const boxNum = String(boxes.length + 1).padStart(2, '0');
+    return `${shipmentIdStr}-${boxNum}`;
+  };
+
   const addMutation = useMutation({
     mutationFn: async () => {
       const l = parseFloat(newBox.length);
@@ -67,11 +87,9 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
       const rate = pricingRule ? parseFloat(String(pricingRule.rate_per_ft3)) : 25;
       const volume = (l * w * h) / 1728;
       const calcPrice = Math.round(volume * rate * 100) / 100;
-      const boxNum = String(boxes.length + 1).padStart(2, '0');
-      const boxId = `${shipmentIdStr}-${boxNum}`;
 
       const { error } = await (supabase as any).from('boxes').insert({
-        box_id: boxId,
+        box_id: nextBoxId(),
         shipment_id: shipmentId,
         length_in: l,
         width_in: w,
@@ -86,6 +104,55 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
       queryClient.invalidateQueries({ queryKey: ['boxes', shipmentId] });
       setNewBox({ length: '', width: '', height: '' });
       toast.success('Box added');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const addStandardItemMutation = useMutation({
+    mutationFn: async ({ name, price }: { name: string; price: number }) => {
+      const { error } = await (supabase as any).from('boxes').insert({
+        box_id: nextBoxId(),
+        shipment_id: shipmentId,
+        length_in: 0,
+        width_in: 0,
+        height_in: 0,
+        applied_rate: 0,
+        calculated_price: price,
+        final_price: price,
+        notes: name,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['boxes', shipmentId] });
+      toast.success('Item added');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const addCustomItemMutation = useMutation({
+    mutationFn: async () => {
+      if (!customItemName.trim()) throw new Error('Enter item name');
+      const price = parseFloat(customItemPrice);
+      if (isNaN(price) || price < 0) throw new Error('Enter a valid price');
+      const { error } = await (supabase as any).from('boxes').insert({
+        box_id: nextBoxId(),
+        shipment_id: shipmentId,
+        length_in: 0,
+        width_in: 0,
+        height_in: 0,
+        applied_rate: 0,
+        calculated_price: price,
+        final_price: price,
+        notes: customItemName.trim(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['boxes', shipmentId] });
+      setCustomItemName('');
+      setCustomItemPrice('');
+      toast.success('Custom item added');
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -138,54 +205,112 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
     <div className="space-y-4">
       {/* UI-only check for better UX — actual security is enforced by RLS policies */}
       {!isFinalized && isStaff && (
-        <div className="flex flex-wrap items-end gap-3 p-4 bg-muted rounded-lg">
-          <div className="space-y-1">
-            <Label className="text-xs">L (in)</Label>
-            <Input
-              className="w-20"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="0"
-              value={newBox.length}
-              onChange={(e) => setNewBox(b => ({ ...b, length: e.target.value }))}
-            />
-          </div>
-          <span className="text-muted-foreground pb-2">×</span>
-          <div className="space-y-1">
-            <Label className="text-xs">W (in)</Label>
-            <Input
-              className="w-20"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="0"
-              value={newBox.width}
-              onChange={(e) => setNewBox(b => ({ ...b, width: e.target.value }))}
-            />
-          </div>
-          <span className="text-muted-foreground pb-2">×</span>
-          <div className="space-y-1">
-            <Label className="text-xs">H (in)</Label>
-            <Input
-              className="w-20"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="0"
-              value={newBox.height}
-              onChange={(e) => setNewBox(b => ({ ...b, height: e.target.value }))}
-              onKeyDown={(e) => e.key === 'Enter' && addMutation.mutate()}
-            />
-          </div>
-          {previewVolume !== null && (
-            <div className="text-sm text-muted-foreground pb-2">
-              = {previewVolume.toFixed(2)} ft³ × ${rate} = <span className="font-semibold text-foreground">${(previewVolume * rate).toFixed(2)}</span>
+        <div className="space-y-4">
+          {/* Standard Items */}
+          {standardItems.length > 0 && (
+            <div className="p-4 bg-muted rounded-lg space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quick Add Standard Items</Label>
+              <div className="flex flex-wrap gap-2">
+                {standardItems.map((item) => (
+                  <Button
+                    key={item.id}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addStandardItemMutation.mutate({ name: item.name, price: item.price })}
+                    disabled={addStandardItemMutation.isPending}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    {item.name} — ${parseFloat(String(item.price)).toFixed(2)}
+                  </Button>
+                ))}
+              </div>
             </div>
           )}
-          <Button size="sm" onClick={() => addMutation.mutate()} disabled={addMutation.isPending} className="mb-0">
-            <Plus className="h-4 w-4 mr-1" /> Add Box
-          </Button>
+
+          {/* Custom Item (black themed) */}
+          <div className="p-4 bg-foreground text-background rounded-lg space-y-2">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-background/70">Custom Item</Label>
+            <div className="flex items-end gap-3">
+              <div className="space-y-1 flex-1">
+                <Input
+                  className="bg-background text-foreground"
+                  placeholder="Item description"
+                  value={customItemName}
+                  onChange={(e) => setCustomItemName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1 w-28">
+                <Input
+                  className="bg-background text-foreground"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Price"
+                  value={customItemPrice}
+                  onChange={(e) => setCustomItemPrice(e.target.value)}
+                />
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => addCustomItemMutation.mutate()}
+                disabled={addCustomItemMutation.isPending}
+              >
+                <Plus className="h-4 w-4 mr-1" /> Add
+              </Button>
+            </div>
+          </div>
+
+          {/* Dimension-based Box */}
+          <div className="flex flex-wrap items-end gap-3 p-4 bg-muted rounded-lg">
+            <div className="space-y-1">
+              <Label className="text-xs">L (in)</Label>
+              <Input
+                className="w-20"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0"
+                value={newBox.length}
+                onChange={(e) => setNewBox(b => ({ ...b, length: e.target.value }))}
+              />
+            </div>
+            <span className="text-muted-foreground pb-2">×</span>
+            <div className="space-y-1">
+              <Label className="text-xs">W (in)</Label>
+              <Input
+                className="w-20"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0"
+                value={newBox.width}
+                onChange={(e) => setNewBox(b => ({ ...b, width: e.target.value }))}
+              />
+            </div>
+            <span className="text-muted-foreground pb-2">×</span>
+            <div className="space-y-1">
+              <Label className="text-xs">H (in)</Label>
+              <Input
+                className="w-20"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0"
+                value={newBox.height}
+                onChange={(e) => setNewBox(b => ({ ...b, height: e.target.value }))}
+                onKeyDown={(e) => e.key === 'Enter' && addMutation.mutate()}
+              />
+            </div>
+            {previewVolume !== null && (
+              <div className="text-sm text-muted-foreground pb-2">
+                = {previewVolume.toFixed(2)} ft³ × ${rate} = <span className="font-semibold text-foreground">${(previewVolume * rate).toFixed(2)}</span>
+              </div>
+            )}
+            <Button size="sm" onClick={() => addMutation.mutate()} disabled={addMutation.isPending} className="mb-0">
+              <Plus className="h-4 w-4 mr-1" /> Add Box
+            </Button>
+          </div>
         </div>
       )}
 
@@ -193,7 +318,7 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
         <TableHeader>
           <TableRow>
             <TableHead>Box ID</TableHead>
-            <TableHead>Dimensions (in)</TableHead>
+            <TableHead>Description</TableHead>
             <TableHead>Volume (ft³)</TableHead>
             <TableHead>Rate</TableHead>
             <TableHead>Price</TableHead>
@@ -201,59 +326,69 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
           </TableRow>
         </TableHeader>
         <TableBody>
-          {boxes.map((box) => (
-            <TableRow key={box.id}>
-              <TableCell className="font-mono-id text-sm">{box.box_id}</TableCell>
-              <TableCell className="text-sm">
-                {parseFloat(String(box.length_in))} × {parseFloat(String(box.width_in))} × {parseFloat(String(box.height_in))}
-              </TableCell>
-              <TableCell className="text-sm">{parseFloat(String(box.volume_ft3)).toFixed(2)}</TableCell>
-              <TableCell className="text-sm">${parseFloat(String(box.applied_rate)).toFixed(2)}</TableCell>
-              <TableCell className="text-sm font-medium">
-                ${parseFloat(String(box.final_price)).toFixed(2)}
-                {box.price_override !== null && (
-                  <span className="ml-1 text-xs text-warning" title={box.override_reason || ''}>⚡</span>
-                )}
-              </TableCell>
-              <TableCell>
-                <div className="flex gap-1">
-                  <LabelPrintButton
-                    shipmentId={shipmentId}
-                    boxIds={[box.id]}
-                    label=""
-                    size="icon"
-                    variant="ghost"
-                    singleBox
-                  />
-                  {isStaff && !isFinalized && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        title="Override price"
-                        onClick={() => {
-                          setOverrideBox(box);
-                          setOverridePrice(String(box.final_price));
-                          setOverrideReason(box.override_reason || '');
-                        }}
-                      >
-                        <DollarSign className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive"
-                        onClick={() => deleteMutation.mutate(box.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </>
+          {boxes.map((box) => {
+            const isStdItem = parseFloat(String(box.length_in)) === 0 && parseFloat(String(box.width_in)) === 0;
+            return (
+              <TableRow key={box.id}>
+                <TableCell className="font-mono-id text-sm">{box.box_id}</TableCell>
+                <TableCell className="text-sm">
+                  {isStdItem
+                    ? (box.notes || 'Standard Item')
+                    : `${parseFloat(String(box.length_in))} × ${parseFloat(String(box.width_in))} × ${parseFloat(String(box.height_in))} in`
+                  }
+                </TableCell>
+                <TableCell className="text-sm">
+                  {isStdItem ? '—' : parseFloat(String(box.volume_ft3)).toFixed(2)}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {isStdItem ? '—' : `$${parseFloat(String(box.applied_rate)).toFixed(2)}`}
+                </TableCell>
+                <TableCell className="text-sm font-medium">
+                  ${parseFloat(String(box.final_price)).toFixed(2)}
+                  {box.price_override !== null && (
+                    <span className="ml-1 text-xs text-warning" title={box.override_reason || ''}>⚡</span>
                   )}
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-1">
+                    <LabelPrintButton
+                      shipmentId={shipmentId}
+                      boxIds={[box.id]}
+                      label=""
+                      size="icon"
+                      variant="ghost"
+                      singleBox
+                    />
+                    {isStaff && !isFinalized && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          title="Override price"
+                          onClick={() => {
+                            setOverrideBox(box);
+                            setOverridePrice(String(box.final_price));
+                            setOverrideReason(box.override_reason || '');
+                          }}
+                        >
+                          <DollarSign className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => deleteMutation.mutate(box.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
           {boxes.length === 0 && (
             <TableRow>
               <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
@@ -263,9 +398,9 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
           )}
           {boxes.length > 0 && (
             <TableRow className="bg-muted/50 font-medium">
-              <TableCell>Total ({boxes.length} boxes)</TableCell>
+              <TableCell>Total ({boxes.length} items)</TableCell>
               <TableCell />
-              <TableCell>{totalVolume.toFixed(2)}</TableCell>
+              <TableCell>{totalVolume > 0 ? totalVolume.toFixed(2) : '—'}</TableCell>
               <TableCell />
               <TableCell className="text-lg">${total.toFixed(2)}</TableCell>
               <TableCell />

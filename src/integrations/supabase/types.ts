@@ -127,6 +127,7 @@ export type Database = {
       company_settings: {
         Row: {
           address: string | null
+          email: string | null
           id: number
           name: string
           phone: string | null
@@ -134,6 +135,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          email?: string | null
           id?: number
           name?: string
           phone?: string | null
@@ -141,6 +143,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          email?: string | null
           id?: number
           name?: string
           phone?: string | null
@@ -495,6 +498,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      standard_items: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          price: number
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          price?: number
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          price?: number
+          sort_order?: number
+        }
+        Relationships: []
       }
       status_events: {
         Row: {
