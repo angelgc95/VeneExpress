@@ -7,12 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Save, Shield } from 'lucide-react';
-import type { CompanySettings, PricingRule } from '@/types/shipping';
+import { Save, Shield, Plus, Trash2 } from 'lucide-react';
+import type { CompanySettings, PricingRule, StandardItem } from '@/types/shipping';
 
 const Settings = () => {
   const queryClient = useQueryClient();
@@ -36,9 +35,22 @@ const Settings = () => {
     },
   });
 
-  const [companyForm, setCompanyForm] = useState({ name: '', phone: '', address: '' });
+  const { data: standardItems = [] } = useQuery({
+    queryKey: ['standard-items'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from('standard_items').select('*').order('sort_order');
+      if (error) throw error;
+      return data as StandardItem[];
+    },
+  });
+
+  const [companyForm, setCompanyForm] = useState({ name: '', phone: '', address: '', email: '' });
   const [editingRule, setEditingRule] = useState<PricingRule | null>(null);
   const [ruleRate, setRuleRate] = useState('');
+  const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [editItemPrice, setEditItemPrice] = useState('');
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemPrice, setNewItemPrice] = useState('');
 
   useEffect(() => {
     if (company) {
@@ -46,6 +58,7 @@ const Settings = () => {
         name: company.name || '',
         phone: company.phone || '',
         address: company.address || '',
+        email: company.email || '',
       });
     }
   }, [company]);
@@ -56,6 +69,7 @@ const Settings = () => {
         name: companyForm.name.trim(),
         phone: companyForm.phone.trim() || null,
         address: companyForm.address.trim() || null,
+        email: companyForm.email.trim() || null,
       }).eq('id', 1);
       if (error) throw error;
     },
@@ -102,6 +116,53 @@ const Settings = () => {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const updateItemPriceMutation = useMutation({
+    mutationFn: async ({ id, price }: { id: string; price: number }) => {
+      const { error } = await (supabase as any).from('standard_items').update({ price }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['standard-items'] });
+      setEditingItem(null);
+      toast.success('Item price updated');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const addItemMutation = useMutation({
+    mutationFn: async () => {
+      if (!newItemName.trim()) throw new Error('Enter item name');
+      const price = parseFloat(newItemPrice);
+      if (isNaN(price) || price < 0) throw new Error('Enter a valid price');
+      const maxSort = standardItems.reduce((max, i) => Math.max(max, i.sort_order), 0);
+      const { error } = await (supabase as any).from('standard_items').insert({
+        name: newItemName.trim(),
+        price,
+        sort_order: maxSort + 1,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['standard-items'] });
+      setNewItemName('');
+      setNewItemPrice('');
+      toast.success('Item added');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteItemMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from('standard_items').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['standard-items'] });
+      toast.success('Item removed');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   // UI-only check for better UX — actual security is enforced by RLS policies on the database
   if (!isAdmin) {
     return (
@@ -137,6 +198,16 @@ const Settings = () => {
               <Label>Address</Label>
               <Input value={companyForm.address} onChange={(e) => setCompanyForm(f => ({ ...f, address: e.target.value }))} />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Zelle Email</Label>
+            <Input
+              type="email"
+              placeholder="payments@example.com"
+              value={companyForm.email}
+              onChange={(e) => setCompanyForm(f => ({ ...f, email: e.target.value }))}
+            />
+            <p className="text-xs text-muted-foreground">This will appear on invoices as "Zelle: your@email.com"</p>
           </div>
           <Button onClick={() => saveCompanyMutation.mutate()} disabled={saveCompanyMutation.isPending}>
             <Save className="h-4 w-4 mr-2" /> Save
@@ -216,6 +287,80 @@ const Settings = () => {
               ))}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-heading">Standard Items</CardTitle>
+          <CardDescription>Preset items available when adding to shipments</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead className="w-28" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {standardItems.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell>
+                    {editingItem === item.id ? (
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          className="w-24 h-8"
+                          type="number"
+                          step="0.01"
+                          value={editItemPrice}
+                          onChange={(e) => setEditItemPrice(e.target.value)}
+                          autoFocus
+                        />
+                        <Button size="sm" variant="ghost" onClick={() => {
+                          const price = parseFloat(editItemPrice);
+                          if (!isNaN(price) && price >= 0) updateItemPriceMutation.mutate({ id: item.id, price });
+                        }}>Save</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingItem(null)}>Cancel</Button>
+                      </div>
+                    ) : (
+                      <span className="font-mono-id">${parseFloat(String(item.price)).toFixed(2)}</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {editingItem !== item.id && (
+                        <Button variant="ghost" size="sm" onClick={() => { setEditingItem(item.id); setEditItemPrice(String(item.price)); }}>
+                          Edit
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteItemMutation.mutate(item.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          <Separator />
+
+          <div className="flex items-end gap-3">
+            <div className="space-y-1 flex-1">
+              <Label className="text-xs">Item Name</Label>
+              <Input placeholder="Custom item name" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} />
+            </div>
+            <div className="space-y-1 w-28">
+              <Label className="text-xs">Price ($)</Label>
+              <Input type="number" step="0.01" min="0" placeholder="0.00" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} />
+            </div>
+            <Button size="sm" onClick={() => addItemMutation.mutate()} disabled={addItemMutation.isPending}>
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

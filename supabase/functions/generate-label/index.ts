@@ -6,7 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Simple Code128B barcode generator → SVG
+// Code128B barcode generator → SVG
+// Uses module width of 2 with proper quiet zones for reliable scanning
 function code128B(text: string): string {
   const START_B = 104;
   const STOP = 106;
@@ -47,12 +48,12 @@ function code128B(text: string): string {
   let bits = "";
   for (const idx of indices) bits += patterns[idx];
 
-  // Use wider bars for better thermal print scanning
-  const barWidth = 3;
-  const height = 60;
-  // Add quiet zone (10x bar width on each side per Code 128 spec)
-  const quietZone = barWidth * 10;
-  const barcodeWidth = bits.length * barWidth;
+  // Standard module width for reliable scanning
+  const moduleWidth = 2;
+  const height = 80;
+  // Quiet zone: minimum 10x module width per Code 128 spec
+  const quietZone = moduleWidth * 10;
+  const barcodeWidth = bits.length * moduleWidth;
   const totalWidth = barcodeWidth + quietZone * 2;
   
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${height}" viewBox="0 0 ${totalWidth} ${height}">`;
@@ -60,7 +61,7 @@ function code128B(text: string): string {
   svg += `<rect x="0" y="0" width="${totalWidth}" height="${height}" fill="#fff"/>`;
   for (let i = 0; i < bits.length; i++) {
     if (bits[i] === "1") {
-      svg += `<rect x="${quietZone + i * barWidth}" y="0" width="${barWidth}" height="${height}" fill="#000"/>`;
+      svg += `<rect x="${quietZone + i * moduleWidth}" y="0" width="${moduleWidth}" height="${height}" fill="#000"/>`;
     }
   }
   svg += `</svg>`;
@@ -81,9 +82,9 @@ function buildBarcodeLabel(box: any, _shipment: any): string {
   const barcodeSvg = code128B(box.box_id);
   return `
     <div class="label barcode-label">
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;">
         ${barcodeSvg}
-        <div style="font-family:monospace;font-size:10px;letter-spacing:1px;font-weight:600">${escapeHtml(box.box_id)}</div>
+        <div style="font-family:'Courier New',monospace;font-size:12px;letter-spacing:2px;font-weight:700">${escapeHtml(box.box_id)}</div>
       </div>
     </div>
   `;
@@ -91,6 +92,7 @@ function buildBarcodeLabel(box: any, _shipment: any): string {
 
 function buildDetailLabel(box: any, shipment: any, senderAddr: any, receiverAddr: any): string {
   const vol = parseFloat(box.volume_ft3 || 0).toFixed(2);
+  const barcodeSvg = code128B(box.box_id);
 
   const fmtAddr = (a: any) => {
     if (!a) return "<p style='margin:0;font-size:8px'>N/A</p>";
@@ -106,6 +108,12 @@ function buildDetailLabel(box: any, shipment: any, senderAddr: any, receiverAddr
 
   return `
     <div class="label detail-label">
+      <!-- Barcode at top -->
+      <div style="text-align:center;margin-bottom:3px;">
+        ${barcodeSvg}
+        <div style="font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;font-weight:700;margin-top:2px">${escapeHtml(box.box_id)}</div>
+      </div>
+
       <!-- IDs -->
       <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
         <div>
@@ -113,14 +121,8 @@ function buildDetailLabel(box: any, shipment: any, senderAddr: any, receiverAddr
           <div style="font-size:10px;font-weight:700;font-family:monospace">${escapeHtml(shipment.shipment_id)}</div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:7px;color:#666;text-transform:uppercase">Box</div>
-          <div style="font-size:10px;font-weight:700;font-family:monospace">${escapeHtml(box.box_id)}</div>
+          <span style="background:${shipment.service_type === "AIR" ? "#3b82f6" : "#64748b"};color:#fff;padding:1px 8px;border-radius:3px;font-size:9px;font-weight:700;letter-spacing:1px">${shipment.service_type}</span>
         </div>
-      </div>
-
-      <!-- Service badge -->
-      <div style="text-align:center;margin-bottom:3px;">
-        <span style="background:${shipment.service_type === "AIR" ? "#3b82f6" : "#64748b"};color:#fff;padding:1px 8px;border-radius:3px;font-size:9px;font-weight:700;letter-spacing:1px">${shipment.service_type}</span>
       </div>
 
       <!-- Addresses -->
@@ -236,8 +238,7 @@ serve(async (req) => {
     }
 
     const isBarcode = labelType === "barcode";
-    const labelHeight = isBarcode ? "25mm" : "50mm";
-    const labelClass = isBarcode ? "barcode-label" : "detail-label";
+    const labelHeight = isBarcode ? "30mm" : "55mm";
 
     const labelsHtml = (boxes || [])
       .map((box: any) =>

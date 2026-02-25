@@ -89,6 +89,12 @@ function buildInvoiceHtml(
     ? "#d97706"
     : "#dc2626";
 
+  // Zelle email line
+  const zelleEmail = company?.email;
+  const zelleSection = zelleEmail
+    ? `<p style="font-size:12px;color:#374151;margin:6px 0 0;font-weight:600;">Zelle: ${escapeHtml(zelleEmail)}</p>`
+    : "";
+
   return `
     <!DOCTYPE html>
     <html>
@@ -116,6 +122,7 @@ function buildInvoiceHtml(
             <h1 style="font-size:28px;font-weight:800;margin:0;letter-spacing:-0.5px;">${escapeHtml(company?.name) || "VeneExpress Shipping"}</h1>
             ${company?.phone ? `<p style="margin:4px 0 0;font-size:13px;color:#6b7280;">${escapeHtml(company.phone)}</p>` : ""}
             ${company?.address ? `<p style="margin:2px 0 0;font-size:13px;color:#6b7280;">${escapeHtml(company.address)}</p>` : ""}
+            ${zelleSection}
           </div>
           <div style="text-align:right;">
             <h2 style="font-size:24px;font-weight:700;margin:0;color:#374151;">INVOICE</h2>
@@ -185,6 +192,7 @@ function buildInvoiceHtml(
         <div style="margin-top:36px;padding-top:16px;border-top:1px solid #e5e7eb;text-align:center;">
           <p style="font-size:11px;color:#9ca3af;margin:0;">Thank you for your business!</p>
           <p style="font-size:11px;color:#9ca3af;margin:4px 0 0;">${escapeHtml(company?.name) || "VeneExpress Shipping"}${company?.phone ? " • " + escapeHtml(company.phone) : ""}</p>
+          ${zelleEmail ? `<p style="font-size:11px;color:#9ca3af;margin:4px 0 0;">Zelle: ${escapeHtml(zelleEmail)}</p>` : ""}
         </div>
       </div>
     </body>
