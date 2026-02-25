@@ -2,7 +2,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ShieldAlert, LogOut } from 'lucide-react';
-import logo from '@/assets/logo-optimized.webp';
+import logo from '@/assets/logo.png';
 
 const PendingApproval = () => {
   const { user, signOut } = useAuth();
