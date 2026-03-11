@@ -33,8 +33,14 @@ const PageLoader = () => (
   </div>
 );
 
-const ProtectedLayout = ({ children }: { children: React.ReactNode }) => (
-  <ProtectedRoute>
+const ProtectedLayout = ({
+  children,
+  requireStaff = false,
+}: {
+  children: React.ReactNode;
+  requireStaff?: boolean;
+}) => (
+  <ProtectedRoute requireStaff={requireStaff}>
     <Layout>{children}</Layout>
   </ProtectedRoute>
 );
@@ -58,7 +64,7 @@ const App = () => (
               <Route path="/shipments" element={<ProtectedLayout><Shipments /></ProtectedLayout>} />
               <Route path="/shipments/new" element={<ProtectedLayout><CreateShipment /></ProtectedLayout>} />
               <Route path="/shipments/:id" element={<ProtectedLayout><ShipmentDetail /></ProtectedLayout>} />
-              <Route path="/scan" element={<ProtectedLayout><ScanPage /></ProtectedLayout>} />
+              <Route path="/scan" element={<ProtectedLayout requireStaff><ScanPage /></ProtectedLayout>} />
               <Route path="/admin/approvals" element={<ProtectedLayout><UserApprovals /></ProtectedLayout>} />
               <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
               <Route path="*" element={<NotFound />} />

@@ -6,10 +6,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Code128B barcode generator → SVG
-// Uses module width of 2 with proper quiet zones for reliable scanning
-function code128B(text: string): string {
+// Code128 barcode generator → SVG
+// Numeric payloads use Code128-C for denser, more reliable labels.
+function code128(text: string): string {
   const START_B = 104;
+  const START_C = 105;
   const STOP = 106;
   const patterns = [
     "11011001100","11001101100","11001100110","10010011000","10010001100",
@@ -35,13 +36,24 @@ function code128B(text: string): string {
     "11110101110","11010000100","11010010000","11010011100","1100011101011",
   ];
 
-  let checksum = START_B;
-  const indices = [START_B];
-  for (let i = 0; i < text.length; i++) {
-    const idx = text.charCodeAt(i) - 32;
-    indices.push(idx);
-    checksum += idx * (i + 1);
+  const numericOnly = /^\d+$/.test(text) && text.length > 0 && text.length % 2 === 0;
+  const indices = [numericOnly ? START_C : START_B];
+  let checksum = indices[0];
+
+  if (numericOnly) {
+    for (let i = 0; i < text.length; i += 2) {
+      const value = Number(text.slice(i, i + 2));
+      indices.push(value);
+      checksum += value * (i / 2 + 1);
+    }
+  } else {
+    for (let i = 0; i < text.length; i++) {
+      const idx = text.charCodeAt(i) - 32;
+      indices.push(idx);
+      checksum += idx * (i + 1);
+    }
   }
+
   indices.push(checksum % 103);
   indices.push(STOP);
 
@@ -68,6 +80,22 @@ function code128B(text: string): string {
   return svg;
 }
 
+function getShipmentScanCodeFromId(shipmentId: string): string | null {
+  const match = shipmentId.trim().toUpperCase().match(/^VE-(\d{4})-(\d{6})$/);
+  if (!match) return null;
+  const [, year, sequence] = match;
+  return `${year}${sequence}`;
+}
+
+function getBoxScanCodeFromId(boxId: string): string | null {
+  const match = boxId.trim().toUpperCase().match(/^(VE-\d{4}-\d{6})-(\d{2})$/);
+  if (!match) return null;
+  const [, shipmentId, boxNumber] = match;
+  const shipmentScanCode = getShipmentScanCodeFromId(shipmentId);
+  if (!shipmentScanCode) return null;
+  return `${shipmentScanCode}${boxNumber}`;
+}
+
 function escapeHtml(unsafe: any): string {
   if (typeof unsafe !== 'string') return '';
   return unsafe
@@ -79,12 +107,15 @@ function escapeHtml(unsafe: any): string {
 }
 
 function buildBarcodeLabel(box: any, _shipment: any): string {
-  const barcodeSvg = code128B(box.box_id);
+  const scanCode = getBoxScanCodeFromId(box.box_id) ?? box.box_id;
+  const barcodeSvg = code128(scanCode);
   return `
     <div class="label barcode-label">
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;">
         ${barcodeSvg}
-        <div style="font-family:'Courier New',monospace;font-size:12px;letter-spacing:2px;font-weight:700">${escapeHtml(box.box_id)}</div>
+        <div style="font-size:8px;color:#666;text-transform:uppercase;letter-spacing:1px">Manual code</div>
+        <div style="font-family:'Courier New',monospace;font-size:12px;letter-spacing:2px;font-weight:700">${escapeHtml(scanCode)}</div>
+        <div style="font-family:'Courier New',monospace;font-size:9px;color:#555;font-weight:700">${escapeHtml(box.box_id)}</div>
       </div>
     </div>
   `;
@@ -92,7 +123,8 @@ function buildBarcodeLabel(box: any, _shipment: any): string {
 
 function buildDetailLabel(box: any, shipment: any, senderAddr: any, receiverAddr: any): string {
   const vol = parseFloat(box.volume_ft3 || 0).toFixed(2);
-  const barcodeSvg = code128B(box.box_id);
+  const scanCode = getBoxScanCodeFromId(box.box_id) ?? box.box_id;
+  const barcodeSvg = code128(scanCode);
 
   const fmtAddr = (a: any) => {
     if (!a) return "<p style='margin:0;font-size:8px'>N/A</p>";
@@ -111,7 +143,9 @@ function buildDetailLabel(box: any, shipment: any, senderAddr: any, receiverAddr
       <!-- Barcode at top -->
       <div style="text-align:center;margin-bottom:3px;">
         ${barcodeSvg}
-        <div style="font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;font-weight:700;margin-top:2px">${escapeHtml(box.box_id)}</div>
+        <div style="font-size:7px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-top:2px">Manual code</div>
+        <div style="font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;font-weight:700">${escapeHtml(scanCode)}</div>
+        <div style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.8px;font-weight:700;color:#555">${escapeHtml(box.box_id)}</div>
       </div>
 
       <!-- IDs -->

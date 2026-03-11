@@ -2,8 +2,14 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import PendingApproval from '@/pages/PendingApproval';
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading, approved } = useAuth();
+const ProtectedRoute = ({
+  children,
+  requireStaff = false,
+}: {
+  children: React.ReactNode;
+  requireStaff?: boolean;
+}) => {
+  const { user, loading, approved, isStaff } = useAuth();
 
   if (loading) {
     return (
@@ -19,6 +25,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!approved) {
     return <PendingApproval />;
+  }
+
+  if (requireStaff && !isStaff) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

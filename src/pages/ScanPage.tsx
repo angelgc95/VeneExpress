@@ -5,8 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { ScanLine, Package, ArrowRight, Camera, X } from 'lucide-react';
+import {
+  buildLookupCandidates,
+  getBoxScanCodeFromId,
+  getShipmentScanCodeFromId,
+  normalizeLookupValue,
+} from '@/lib/scan-codes';
 import type { Shipment, Box, ShipmentStatus } from '@/types/shipping';
 
 const statusVariant = (status: ShipmentStatus) => {
@@ -19,20 +26,23 @@ const statusVariant = (status: ShipmentStatus) => {
 
 // Check if native BarcodeDetector is available
 const hasBarcodeDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
+type ScanResult = Shipment & { customers: { first_name: string; last_name: string } };
+type DetectedBarcode = { rawValue?: string; format?: string };
+type BarcodeDetectorLike = {
+  detect: (input: HTMLVideoElement) => Promise<DetectedBarcode[]>;
+};
 
 const ScanPage = () => {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const scanningRef = useRef(false);
   const animFrameRef = useRef<number>(0);
-  const detectorRef = useRef<any>(null);
+  const detectorRef = useRef<BarcodeDetectorLike | null>(null);
   const [query, setQuery] = useState('');
   const [scanStatus, setScanStatus] = useState('');
-  const [result, setResult] = useState<{
-    shipment: Shipment & { customers: { first_name: string; last_name: string } };
-    box?: Box;
-  } | null>(null);
+  const [result, setResult] = useState<{ shipment: ScanResult; box?: Box } | null>(null);
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
 
@@ -47,51 +57,78 @@ const ScanPage = () => {
     };
   }, []);
 
-  const handleSearch = useCallback(async (q: string) => {
-    q = q.trim();
-    if (!q) return;
+  const handleSearch = useCallback(async (rawQuery: string) => {
+    const normalizedQuery = normalizeLookupValue(rawQuery);
+    if (!normalizedQuery) return;
+
+    setQuery(normalizedQuery);
     setLoading(true);
     setResult(null);
 
     try {
-      const { data: box } = await (supabase as any)
-        .from('boxes')
-        .select('*')
-        .eq('box_id', q)
-        .maybeSingle();
+      const { boxIds, shipmentIds } = buildLookupCandidates(normalizedQuery);
+      const boxSearchValues = [...new Set([normalizedQuery, ...boxIds])];
+      const shipmentSearchValues = [...new Set([normalizedQuery, ...shipmentIds])];
 
-      if (box) {
-        const { data: shipment } = await (supabase as any)
+      if (boxSearchValues.length > 0) {
+        const { data: boxes, error: boxError } = await supabase
+          .from('boxes')
+          .select('*')
+          .in('box_id', boxSearchValues)
+          .limit(1);
+
+        if (boxError) throw boxError;
+
+        const box = boxes?.[0];
+        if (box) {
+          const { data: shipment, error: shipmentError } = await supabase
+            .from('shipments')
+            .select('*, customers(first_name, last_name)')
+            .eq('id', box.shipment_id)
+            .single();
+
+          if (shipmentError) throw shipmentError;
+
+          if (shipment) {
+            setResult({ shipment, box });
+            return;
+          }
+        }
+      }
+
+      if (shipmentSearchValues.length > 0) {
+        const { data: shipments, error: shipmentError } = await supabase
           .from('shipments')
           .select('*, customers(first_name, last_name)')
-          .eq('id', box.shipment_id)
-          .single();
+          .in('shipment_id', shipmentSearchValues)
+          .limit(1);
+
+        if (shipmentError) throw shipmentError;
+
+        const shipment = shipments?.[0];
         if (shipment) {
-          setResult({ shipment, box });
-          setLoading(false);
+          setResult({ shipment });
           return;
         }
       }
 
-      const { data: shipment } = await (supabase as any)
-        .from('shipments')
-        .select('*, customers(first_name, last_name)')
-        .eq('shipment_id', q)
-        .maybeSingle();
-
-      if (shipment) {
-        setResult({ shipment });
-      } else {
-        toast.error('No shipment or box found');
-      }
+      toast.error('No shipment or box found');
     } catch (e) {
       toast.error('Search failed');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
+
+  const resultScanCode = result?.box
+    ? getBoxScanCodeFromId(result.box.box_id)
+    : result
+      ? getShipmentScanCodeFromId(result.shipment.shipment_id)
+      : null;
 
   const startScanner = async () => {
     try {
+      scanningRef.current = true;
       setScanning(true);
 
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -108,20 +145,28 @@ const ScanPage = () => {
       }
 
       if (hasBarcodeDetector) {
+        const BarcodeDetectorCtor = (window as Window & typeof globalThis & {
+          BarcodeDetector?: new (options: { formats: string[] }) => BarcodeDetectorLike;
+        }).BarcodeDetector;
+
         setScanStatus('Using native scanner...');
         console.log('[Scanner] Using native BarcodeDetector');
-        detectorRef.current = new (window as any).BarcodeDetector({
-          formats: ['code_128', 'code_39', 'ean_13', 'qr_code'],
-        });
+        detectorRef.current = BarcodeDetectorCtor
+          ? new BarcodeDetectorCtor({
+              formats: ['code_128', 'code_39', 'ean_13', 'qr_code'],
+            })
+          : null;
         detectLoop();
       } else {
         setScanStatus('Using fallback scanner...');
         console.log('[Scanner] BarcodeDetector not available, using fallback');
         startHtml5QrcodeFallback();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       stopScanner();
-      if (err?.name === 'NotAllowedError' || err?.message?.includes('Permission')) {
+      const errorName = err instanceof Error ? err.name : '';
+      const errorMessage = err instanceof Error ? err.message : '';
+      if (errorName === 'NotAllowedError' || errorMessage.includes('Permission')) {
         toast.error('Camera permission denied. Please allow camera access.');
       } else {
         toast.error('Camera not available. Use manual input instead.');
@@ -150,7 +195,8 @@ const ScanPage = () => {
           console.log('[Scanner] Detected:', value, 'format:', barcodes[0].format);
           if (value) {
             toast.success(`Scanned: ${value}`);
-            setQuery(value);
+            setScanStatus('Barcode captured. Looking up record...');
+            setQuery(normalizeLookupValue(value));
             stopScanner();
             handleSearch(value);
             return;
@@ -189,7 +235,7 @@ const ScanPage = () => {
       const ctx = canvas.getContext('2d')!;
 
       const scanFrame = async () => {
-        if (!videoRef.current || !scanning) return;
+        if (!videoRef.current || !scanningRef.current) return;
         const video = videoRef.current;
         if (video.readyState < 2) {
           animFrameRef.current = requestAnimationFrame(scanFrame);
@@ -204,13 +250,16 @@ const ScanPage = () => {
             false
           );
           if (result?.decodedText) {
-            setQuery(result.decodedText);
+            setScanStatus('Barcode captured. Looking up record...');
+            setQuery(normalizeLookupValue(result.decodedText));
             stopScanner();
             handleSearch(result.decodedText);
             el.remove();
             return;
           }
-        } catch {}
+        } catch {
+          // Keep scanning frames until a readable barcode is found.
+        }
         setTimeout(() => {
           animFrameRef.current = requestAnimationFrame(scanFrame);
         }, 200); // scan every 200ms for fallback
@@ -231,7 +280,9 @@ const ScanPage = () => {
       streamRef.current = null;
     }
     detectorRef.current = null;
+    scanningRef.current = false;
     setScanning(false);
+    setScanStatus('');
     // Cleanup fallback element
     document.getElementById('qr-fallback-region')?.remove();
   };
@@ -240,27 +291,34 @@ const ScanPage = () => {
     <div className="max-w-xl mx-auto space-y-6 animate-fade-in">
       <div className="text-center">
         <h1 className="text-2xl font-bold font-heading">Scan / Search</h1>
-        <p className="text-muted-foreground text-sm">Scan a barcode or type a Shipment/Box ID</p>
+        <p className="text-muted-foreground text-sm">Scan a barcode or type a shipment ID, box ID, or manual scan code</p>
       </div>
 
       <Card>
         <CardContent className="p-6 space-y-4">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                ref={inputRef}
-                className="pl-11 h-14 text-lg font-mono-id"
-                placeholder="Scan or type ID..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch(query)}
-                autoFocus
-              />
+          <div className="space-y-2">
+            <Label htmlFor="manual-entry">Manual entry</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  id="manual-entry"
+                  ref={inputRef}
+                  className="pl-11 h-14 text-lg font-mono-id"
+                  placeholder="Enter scan code, shipment ID, or box ID"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch(query)}
+                  autoFocus
+                />
+              </div>
+              <Button className="h-14 px-6 bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => handleSearch(query)} disabled={loading}>
+                {loading ? '...' : 'Go'}
+              </Button>
             </div>
-            <Button className="h-14 px-6 bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => handleSearch(query)} disabled={loading}>
-              {loading ? '...' : 'Go'}
-            </Button>
+            <p className="text-xs text-muted-foreground">
+              Use the printed numeric scan code if the camera or barcode scanner misses the label.
+            </p>
           </div>
 
           {!scanning ? (
@@ -316,6 +374,12 @@ const ScanPage = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {resultScanCode && (
+              <div className="p-3 border rounded-lg">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Manual scan code</p>
+                <p className="text-sm font-mono-id">{resultScanCode}</p>
+              </div>
+            )}
             {result.box && (
               <div className="p-3 bg-muted rounded-lg">
                 <p className="text-sm font-medium">Box: <span className="font-mono-id">{result.box.box_id}</span></p>

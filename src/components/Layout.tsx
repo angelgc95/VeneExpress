@@ -24,7 +24,7 @@ const adminNavItems = [
 ];
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
-  const { user, role, isAdmin, signOut } = useAuth();
+  const { user, role, isAdmin, isStaff, signOut } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -42,7 +42,10 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     refetchInterval: 30000,
   });
 
-  const allNav = [...navItems, ...(isAdmin ? adminNavItems : [])];
+  const allNav = [
+    ...navItems.filter((item) => item.path !== '/scan' || isStaff),
+    ...(isAdmin ? adminNavItems : []),
+  ];
 
   return (
     <div className="min-h-screen flex bg-background">

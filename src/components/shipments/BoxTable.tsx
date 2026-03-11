@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Plus, Trash2, DollarSign } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import LabelPrintButton from '@/components/shipments/LabelPrintButton';
+import { getBoxScanCodeFromId } from '@/lib/scan-codes';
 import type { Box, PricingRule, ServiceType, StandardItem } from '@/types/shipping';
 
 interface BoxTableProps {
@@ -328,9 +329,17 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
         <TableBody>
           {boxes.map((box) => {
             const isStdItem = parseFloat(String(box.length_in)) === 0 && parseFloat(String(box.width_in)) === 0;
+            const scanCode = getBoxScanCodeFromId(box.box_id);
             return (
               <TableRow key={box.id}>
-                <TableCell className="font-mono-id text-sm">{box.box_id}</TableCell>
+                <TableCell className="text-sm">
+                  <div className="font-mono-id">{box.box_id}</div>
+                  {scanCode && (
+                    <div className="text-xs text-muted-foreground">
+                      Scan code: <span className="font-mono-id">{scanCode}</span>
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell className="text-sm">
                   {isStdItem
                     ? (box.notes || 'Standard Item')
