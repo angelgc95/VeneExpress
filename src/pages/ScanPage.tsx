@@ -27,6 +27,7 @@ const statusVariant = (status: ShipmentStatus) => {
 
 const SCANNER_REGION_ID = 'shipment-scan-region';
 const SCANNER_STATUS_READY = 'Camera scanner active. Align the barcode inside the frame.';
+const REQUIRED_NATIVE_FORMATS = ['code_128', 'code_39', 'ean_13', 'qr_code'] as const;
 type ScanResult = Shipment & { customers: { first_name: string; last_name: string } };
 
 const ScanPage = () => {
@@ -120,6 +121,25 @@ const ScanPage = () => {
       ? getShipmentScanCodeFromId(result.shipment.shipment_id)
       : null;
 
+  const supportsRequiredNativeFormats = useCallback(async () => {
+    const BarcodeDetectorCtor = (window as Window & typeof globalThis & {
+      BarcodeDetector?: {
+        getSupportedFormats?: () => Promise<string[]>;
+      };
+    }).BarcodeDetector;
+
+    if (!BarcodeDetectorCtor?.getSupportedFormats) {
+      return false;
+    }
+
+    try {
+      const supportedFormats = await BarcodeDetectorCtor.getSupportedFormats();
+      return REQUIRED_NATIVE_FORMATS.every((format) => supportedFormats.includes(format));
+    } catch {
+      return false;
+    }
+  }, []);
+
   const stopScanner = useCallback(async () => {
     scanningRef.current = false;
     const scanner = html5QrCodeRef.current;
@@ -163,6 +183,9 @@ const ScanPage = () => {
       setScanStatus('Starting camera scanner...');
 
       const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode');
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+
+      const shouldUseNativeDetector = await supportsRequiredNativeFormats();
       const scanner = new Html5Qrcode(SCANNER_REGION_ID, {
         formatsToSupport: [
           Html5QrcodeSupportedFormats.CODE_128,
@@ -170,13 +193,18 @@ const ScanPage = () => {
           Html5QrcodeSupportedFormats.EAN_13,
           Html5QrcodeSupportedFormats.QR_CODE,
         ],
-        useBarCodeDetectorIfSupported: true,
+        useBarCodeDetectorIfSupported: shouldUseNativeDetector,
         verbose: false,
       });
 
       html5QrCodeRef.current = scanner;
 
       let cameraConfig: string | MediaTrackConstraints = { facingMode: { ideal: 'environment' } };
+      let videoConstraints: MediaTrackConstraints = {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      };
       try {
         const cameras = await Html5Qrcode.getCameras();
         const rearCamera = cameras.find((camera: CameraDevice) =>
@@ -184,8 +212,18 @@ const ScanPage = () => {
         );
         if (rearCamera) {
           cameraConfig = rearCamera.id;
+          videoConstraints = {
+            deviceId: { exact: rearCamera.id },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          };
         } else if (cameras[0]) {
           cameraConfig = cameras[0].id;
+          videoConstraints = {
+            deviceId: { exact: cameras[0].id },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          };
         }
       } catch {
         // Fall back to facingMode when camera enumeration is restricted.
@@ -197,6 +235,7 @@ const ScanPage = () => {
           fps: 10,
           aspectRatio: 4 / 3,
           disableFlip: true,
+          videoConstraints,
           qrbox: (viewfinderWidth, viewfinderHeight) => ({
             width: Math.floor(viewfinderWidth * 0.82),
             height: Math.max(100, Math.floor(viewfinderHeight * 0.32)),
@@ -212,7 +251,11 @@ const ScanPage = () => {
         }
       );
 
-      setScanStatus(SCANNER_STATUS_READY);
+      setScanStatus(
+        shouldUseNativeDetector
+          ? `${SCANNER_STATUS_READY} Native detector enabled.`
+          : `${SCANNER_STATUS_READY} Cross-browser decoder enabled.`
+      );
     } catch (err: unknown) {
       await stopScanner();
       const errorName = err instanceof Error ? err.name : '';
