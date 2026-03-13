@@ -73,7 +73,12 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
   });
 
   const nextBoxId = () => {
-    const boxNum = String(boxes.length + 1).padStart(2, '0');
+    const nextBoxNumber = boxes.reduce((max, box) => {
+      const match = box.box_id.match(/-(\d{2})$/);
+      if (!match) return max;
+      return Math.max(max, Number(match[1]));
+    }, 0) + 1;
+    const boxNum = String(nextBoxNumber).padStart(2, '0');
     return `${shipmentIdStr}-${boxNum}`;
   };
 

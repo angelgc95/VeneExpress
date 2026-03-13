@@ -62,10 +62,11 @@ const Customers = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { data: linkedShipments } = await (supabase as any)
+      const { data: linkedShipments, error: linkedShipmentsError } = await (supabase as any)
         .from('shipments')
         .select('customer_id')
         .in('customer_id', ids);
+      if (linkedShipmentsError) throw linkedShipmentsError;
 
       const linkedIds = new Set((linkedShipments || []).map((s: any) => s.customer_id));
       const deletableIds = ids.filter((id) => !linkedIds.has(id));
@@ -100,37 +101,11 @@ const Customers = () => {
 
   const forceDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      // First delete all shipment-related data for these customers
-      const { data: shipments } = await (supabase as any)
-        .from('shipments')
-        .select('id')
-        .in('customer_id', ids);
-      const shipmentIds = (shipments || []).map((s: any) => s.id);
-
-      if (shipmentIds.length > 0) {
-        // Delete child records in order
-        await (supabase as any).from('status_events').delete().in('shipment_id', shipmentIds);
-        await (supabase as any).from('boxes').delete().in('shipment_id', shipmentIds);
-        
-        const { data: invoices } = await (supabase as any)
-          .from('invoices')
-          .select('id')
-          .in('shipment_id', shipmentIds);
-        const invoiceIds = (invoices || []).map((i: any) => i.id);
-
-        if (invoiceIds.length > 0) {
-          await (supabase as any).from('payments').delete().in('invoice_id', invoiceIds);
-          await (supabase as any).from('invoice_line_items').delete().in('invoice_id', invoiceIds);
-          await (supabase as any).from('invoices').delete().in('shipment_id', shipmentIds);
-        }
-
-        await (supabase as any).from('notification_log').delete().in('shipment_id', shipmentIds);
-        await (supabase as any).from('shipments').delete().in('customer_id', ids);
-      }
-
-      const { error } = await (supabase as any).from('customers').delete().in('id', ids);
+      const { data, error } = await (supabase as any).rpc('delete_customers_with_related_data', {
+        p_customer_ids: ids,
+      });
       if (error) throw error;
-      return ids.length;
+      return Number(data ?? 0);
     },
     onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });

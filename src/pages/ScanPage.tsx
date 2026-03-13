@@ -27,7 +27,6 @@ const statusVariant = (status: ShipmentStatus) => {
 
 const SCANNER_REGION_ID = 'shipment-scan-region';
 const SCANNER_STATUS_READY = 'Camera scanner active. Align the barcode inside the frame.';
-const REQUIRED_NATIVE_FORMATS = ['code_128', 'code_39', 'ean_13', 'qr_code'] as const;
 type ScanResult = Shipment & { customers: { first_name: string; last_name: string } };
 
 const ScanPage = () => {
@@ -43,13 +42,6 @@ const ScanPage = () => {
 
   useEffect(() => {
     inputRef.current?.focus();
-  }, []);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      void stopScanner();
-    };
   }, []);
 
   const handleSearch = useCallback(async (rawQuery: string) => {
@@ -121,25 +113,6 @@ const ScanPage = () => {
       ? getShipmentScanCodeFromId(result.shipment.shipment_id)
       : null;
 
-  const supportsRequiredNativeFormats = useCallback(async () => {
-    const BarcodeDetectorCtor = (window as Window & typeof globalThis & {
-      BarcodeDetector?: {
-        getSupportedFormats?: () => Promise<string[]>;
-      };
-    }).BarcodeDetector;
-
-    if (!BarcodeDetectorCtor?.getSupportedFormats) {
-      return false;
-    }
-
-    try {
-      const supportedFormats = await BarcodeDetectorCtor.getSupportedFormats();
-      return REQUIRED_NATIVE_FORMATS.every((format) => supportedFormats.includes(format));
-    } catch {
-      return false;
-    }
-  }, []);
-
   const stopScanner = useCallback(async () => {
     scanningRef.current = false;
     const scanner = html5QrCodeRef.current;
@@ -163,13 +136,22 @@ const ScanPage = () => {
     setScanStatus('');
   }, []);
 
+  useEffect(() => {
+    return () => {
+      void stopScanner();
+    };
+  }, [stopScanner]);
+
   const handleDetectedCode = useCallback(async (decodedText: string) => {
     const normalizedValue = normalizeLookupValue(decodedText);
     if (!normalizedValue || !scanningRef.current) return;
 
-    toast.success(`Scanned: ${normalizedValue}`);
+    const lookupCandidates = buildLookupCandidates(normalizedValue);
+    const displayValue = lookupCandidates.digitsOnly || normalizedValue;
+
+    toast.success(`Scanned: ${displayValue}`);
     setScanStatus('Barcode captured. Looking up record...');
-    setQuery(normalizedValue);
+    setQuery(displayValue);
     await stopScanner();
     await handleSearch(normalizedValue);
   }, [handleSearch, stopScanner]);
@@ -185,15 +167,13 @@ const ScanPage = () => {
       const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode');
       await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
-      const shouldUseNativeDetector = await supportsRequiredNativeFormats();
       const scanner = new Html5Qrcode(SCANNER_REGION_ID, {
         formatsToSupport: [
           Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
           Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.QR_CODE,
         ],
-        useBarCodeDetectorIfSupported: shouldUseNativeDetector,
+        // Keep the decoder path predictable across browsers for 1D shipping labels.
+        useBarCodeDetectorIfSupported: false,
         verbose: false,
       });
 
@@ -213,14 +193,12 @@ const ScanPage = () => {
         if (rearCamera) {
           cameraConfig = rearCamera.id;
           videoConstraints = {
-            deviceId: { exact: rearCamera.id },
             width: { ideal: 1920 },
             height: { ideal: 1080 },
           };
         } else if (cameras[0]) {
           cameraConfig = cameras[0].id;
           videoConstraints = {
-            deviceId: { exact: cameras[0].id },
             width: { ideal: 1920 },
             height: { ideal: 1080 },
           };
@@ -232,13 +210,13 @@ const ScanPage = () => {
       await scanner.start(
         cameraConfig,
         {
-          fps: 10,
+          fps: 8,
           aspectRatio: 4 / 3,
-          disableFlip: true,
+          disableFlip: false,
           videoConstraints,
           qrbox: (viewfinderWidth, viewfinderHeight) => ({
-            width: Math.floor(viewfinderWidth * 0.82),
-            height: Math.max(100, Math.floor(viewfinderHeight * 0.32)),
+            width: Math.floor(viewfinderWidth * 0.92),
+            height: Math.max(90, Math.floor(viewfinderHeight * 0.22)),
           }),
         },
         (decodedText) => {
@@ -251,11 +229,7 @@ const ScanPage = () => {
         }
       );
 
-      setScanStatus(
-        shouldUseNativeDetector
-          ? `${SCANNER_STATUS_READY} Native detector enabled.`
-          : `${SCANNER_STATUS_READY} Cross-browser decoder enabled.`
-      );
+      setScanStatus(`${SCANNER_STATUS_READY} Optimized for VeneExpress box labels.`);
     } catch (err: unknown) {
       await stopScanner();
       const errorName = err instanceof Error ? err.name : '';

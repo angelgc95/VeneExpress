@@ -83,47 +83,39 @@ const CreateShipment = () => {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      let cId = customerId;
-
-      if (isNewCustomer) {
-        if (!newCustomer.first_name.trim() || !newCustomer.last_name.trim()) throw new Error('Customer name required');
-        const { data, error } = await (supabase as any).from('customers').insert({
-          first_name: newCustomer.first_name.trim(),
-          last_name: newCustomer.last_name.trim(),
-          phone: newCustomer.phone.trim() || null,
-          email: newCustomer.email.trim() || null,
-        }).select('id').single();
-        if (error) throw error;
-        cId = data.id;
-      }
-
-      if (!cId) throw new Error('Please select a customer');
+      const selectedCustomerId = isNewCustomer ? null : customerId;
+      if (!isNewCustomer && !selectedCustomerId) throw new Error('Please select a customer');
       if (!sender.name.trim() || !sender.line1.trim() || !sender.city.trim()) throw new Error('Sender address is incomplete');
       if (!receiver.name.trim() || !receiver.line1.trim() || !receiver.city.trim()) throw new Error('Receiver address is incomplete');
 
-      const { data: sAddr, error: sErr } = await (supabase as any).from('addresses').insert({
-        name: sender.name.trim(), phone: sender.phone.trim() || null, line1: sender.line1.trim(),
-        line2: sender.line2.trim() || null, city: sender.city.trim(), state: sender.state.trim() || null,
-        postal_code: sender.postal_code.trim() || null, country: sender.country,
-      }).select('id').single();
-      if (sErr) throw sErr;
+      const { data, error } = await (supabase as any).rpc('create_shipment_with_addresses', {
+        p_customer_id: selectedCustomerId,
+        p_new_customer_first_name: isNewCustomer ? newCustomer.first_name : null,
+        p_new_customer_last_name: isNewCustomer ? newCustomer.last_name : null,
+        p_new_customer_phone: isNewCustomer ? newCustomer.phone : null,
+        p_new_customer_email: isNewCustomer ? newCustomer.email : null,
+        p_sender_name: sender.name,
+        p_sender_phone: sender.phone,
+        p_sender_line1: sender.line1,
+        p_sender_line2: sender.line2,
+        p_sender_city: sender.city,
+        p_sender_state: sender.state,
+        p_sender_postal_code: sender.postal_code,
+        p_sender_country: sender.country,
+        p_receiver_name: receiver.name,
+        p_receiver_phone: receiver.phone,
+        p_receiver_line1: receiver.line1,
+        p_receiver_line2: receiver.line2,
+        p_receiver_city: receiver.city,
+        p_receiver_state: receiver.state,
+        p_receiver_postal_code: receiver.postal_code,
+        p_receiver_country: receiver.country,
+        p_service_type: serviceType,
+      });
+      if (error) throw error;
+      if (!data) throw new Error('Shipment creation did not return an id');
 
-      const { data: rAddr, error: rErr } = await (supabase as any).from('addresses').insert({
-        name: receiver.name.trim(), phone: receiver.phone.trim() || null, line1: receiver.line1.trim(),
-        line2: receiver.line2.trim() || null, city: receiver.city.trim(), state: receiver.state.trim() || null,
-        postal_code: receiver.postal_code.trim() || null, country: receiver.country,
-      }).select('id').single();
-      if (rErr) throw rErr;
-
-      const { data: shipment, error: shipErr } = await (supabase as any).from('shipments').insert({
-        customer_id: cId,
-        sender_address_id: sAddr.id,
-        receiver_address_id: rAddr.id,
-        service_type: serviceType,
-      }).select('id').single();
-      if (shipErr) throw shipErr;
-
-      return shipment.id;
+      return data as string;
     },
     onSuccess: (id) => {
       toast.success('Shipment created!');

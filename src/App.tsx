@@ -36,11 +36,13 @@ const PageLoader = () => (
 const ProtectedLayout = ({
   children,
   requireStaff = false,
+  requireAdmin = false,
 }: {
   children: React.ReactNode;
   requireStaff?: boolean;
+  requireAdmin?: boolean;
 }) => (
-  <ProtectedRoute requireStaff={requireStaff}>
+  <ProtectedRoute requireStaff={requireStaff} requireAdmin={requireAdmin}>
     <Layout>{children}</Layout>
   </ProtectedRoute>
 );
@@ -59,14 +61,14 @@ const App = () => (
               <Route path="/contact" element={<Contact />} />
               <Route path="/track/:trackingCode" element={<TrackingPublic />} />
               <Route path="/track" element={<TrackingPublic />} />
-              <Route path="/dashboard" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
-              <Route path="/customers" element={<ProtectedLayout><Customers /></ProtectedLayout>} />
-              <Route path="/shipments" element={<ProtectedLayout><Shipments /></ProtectedLayout>} />
-              <Route path="/shipments/new" element={<ProtectedLayout><CreateShipment /></ProtectedLayout>} />
-              <Route path="/shipments/:id" element={<ProtectedLayout><ShipmentDetail /></ProtectedLayout>} />
+              <Route path="/dashboard" element={<ProtectedLayout requireStaff><Dashboard /></ProtectedLayout>} />
+              <Route path="/customers" element={<ProtectedLayout requireStaff><Customers /></ProtectedLayout>} />
+              <Route path="/shipments" element={<ProtectedLayout requireStaff><Shipments /></ProtectedLayout>} />
+              <Route path="/shipments/new" element={<ProtectedLayout requireStaff><CreateShipment /></ProtectedLayout>} />
+              <Route path="/shipments/:id" element={<ProtectedLayout requireStaff><ShipmentDetail /></ProtectedLayout>} />
               <Route path="/scan" element={<ProtectedLayout requireStaff><ScanPage /></ProtectedLayout>} />
-              <Route path="/admin/approvals" element={<ProtectedLayout><UserApprovals /></ProtectedLayout>} />
-              <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
+              <Route path="/admin/approvals" element={<ProtectedLayout requireAdmin><UserApprovals /></ProtectedLayout>} />
+              <Route path="/settings" element={<ProtectedLayout requireAdmin><Settings /></ProtectedLayout>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

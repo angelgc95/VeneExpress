@@ -31,7 +31,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const { data: pendingCount = 0 } = useQuery({
     queryKey: ['pending-approvals-count'],
     queryFn: async () => {
-      const { count, error } = await (supabase as any)
+      const { count, error } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
         .eq('approved', false);
@@ -42,10 +42,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     refetchInterval: 30000,
   });
 
-  const allNav = [
-    ...navItems.filter((item) => item.path !== '/scan' || isStaff),
-    ...(isAdmin ? adminNavItems : []),
-  ];
+  const allNav = isStaff
+    ? [...navItems, ...(isAdmin ? adminNavItems : [])]
+    : [];
 
   return (
     <div className="min-h-screen flex bg-background">

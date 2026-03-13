@@ -6,8 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Code128 barcode generator → SVG
-// Numeric payloads use Code128-C for denser, more reliable labels.
+// Code128 fallback barcode generator → SVG
 function code128(text: string): string {
   const START_B = 104;
   const START_C = 105;
@@ -80,6 +79,89 @@ function code128(text: string): string {
   return svg;
 }
 
+const EAN13_LEFT_L = [
+  "0001101", "0011001", "0010011", "0111101", "0100011",
+  "0110001", "0101111", "0111011", "0110111", "0001011",
+];
+
+const EAN13_LEFT_G = [
+  "0100111", "0110011", "0011011", "0100001", "0011101",
+  "0111001", "0000101", "0010001", "0001001", "0010111",
+];
+
+const EAN13_RIGHT = [
+  "1110010", "1100110", "1101100", "1000010", "1011100",
+  "1001110", "1010000", "1000100", "1001000", "1110100",
+];
+
+const EAN13_PARITY = [
+  "LLLLLL", "LLGLGG", "LLGGLG", "LLGGGL", "LGLLGG",
+  "LGGLLG", "LGGGLL", "LGLGLG", "LGLGGL", "LGGLGL",
+];
+
+function getEan13CheckDigit(text: string): string | null {
+  const digitsOnly = text.replace(/\D/g, "");
+  if (!/^\d{12}$/.test(digitsOnly)) return null;
+
+  const total = digitsOnly
+    .split("")
+    .map(Number)
+    .reduce((sum, digit, index) => sum + digit * (index % 2 === 0 ? 1 : 3), 0);
+
+  return String((10 - (total % 10)) % 10);
+}
+
+function ean13(text: string): string {
+  const digitsOnly = text.replace(/\D/g, "");
+  const value = /^\d{13}$/.test(digitsOnly)
+    ? digitsOnly
+    : /^\d{12}$/.test(digitsOnly)
+      ? `${digitsOnly}${getEan13CheckDigit(digitsOnly)}`
+      : null;
+
+  if (!value) {
+    return code128(text);
+  }
+
+  const parity = EAN13_PARITY[Number(value[0])];
+  const leftDigits = value.slice(1, 7);
+  const rightDigits = value.slice(7);
+
+  let bits = "101";
+  for (let i = 0; i < leftDigits.length; i += 1) {
+    const digit = Number(leftDigits[i]);
+    bits += parity[i] === "L" ? EAN13_LEFT_L[digit] : EAN13_LEFT_G[digit];
+  }
+
+  bits += "01010";
+
+  for (const digitChar of rightDigits) {
+    bits += EAN13_RIGHT[Number(digitChar)];
+  }
+
+  bits += "101";
+
+  const moduleWidth = 2;
+  const quietZone = moduleWidth * 11;
+  const barHeight = 76;
+  const guardHeight = 92;
+  const totalWidth = bits.length * moduleWidth + quietZone * 2;
+  const totalHeight = guardHeight + 18;
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidth} ${totalHeight}" style="display:block;width:100%;height:auto;shape-rendering:crispEdges">`;
+  svg += `<rect x="0" y="0" width="${totalWidth}" height="${totalHeight}" fill="#fff"/>`;
+
+  for (let i = 0; i < bits.length; i += 1) {
+    if (bits[i] !== "1") continue;
+    const isGuardBar = i < 3 || (i >= 45 && i < 50) || i >= 92;
+    svg += `<rect x="${quietZone + i * moduleWidth}" y="0" width="${moduleWidth}" height="${isGuardBar ? guardHeight : barHeight}" fill="#000"/>`;
+  }
+
+  svg += `<text x="${totalWidth / 2}" y="${totalHeight - 2}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="14" letter-spacing="1">${value}</text>`;
+  svg += `</svg>`;
+  return svg;
+}
+
 function getShipmentScanCodeFromId(shipmentId: string): string | null {
   const match = shipmentId.trim().toUpperCase().match(/^VE-(\d{4})-(\d{6})$/);
   if (!match) return null;
@@ -96,6 +178,14 @@ function getBoxScanCodeFromId(boxId: string): string | null {
   return `${shipmentScanCode}${boxNumber}`;
 }
 
+function getBoxBarcodeValueFromId(boxId: string): string | null {
+  const scanCode = getBoxScanCodeFromId(boxId);
+  if (!scanCode) return null;
+  const checkDigit = getEan13CheckDigit(scanCode);
+  if (!checkDigit) return null;
+  return `${scanCode}${checkDigit}`;
+}
+
 function escapeHtml(unsafe: any): string {
   if (typeof unsafe !== 'string') return '';
   return unsafe
@@ -108,11 +198,12 @@ function escapeHtml(unsafe: any): string {
 
 function buildBarcodeLabel(box: any, _shipment: any): string {
   const scanCode = getBoxScanCodeFromId(box.box_id) ?? box.box_id;
-  const barcodeSvg = code128(scanCode);
+  const barcodeValue = getBoxBarcodeValueFromId(box.box_id) ?? scanCode;
+  const barcodeSvg = ean13(barcodeValue);
   return `
     <div class="label barcode-label">
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;">
-        ${barcodeSvg}
+        <div style="width:48mm;max-width:100%;">${barcodeSvg}</div>
         <div style="font-size:8px;color:#666;text-transform:uppercase;letter-spacing:1px">Manual code</div>
         <div style="font-family:'Courier New',monospace;font-size:12px;letter-spacing:2px;font-weight:700">${escapeHtml(scanCode)}</div>
         <div style="font-family:'Courier New',monospace;font-size:9px;color:#555;font-weight:700">${escapeHtml(box.box_id)}</div>
@@ -124,7 +215,8 @@ function buildBarcodeLabel(box: any, _shipment: any): string {
 function buildDetailLabel(box: any, shipment: any, senderAddr: any, receiverAddr: any): string {
   const vol = parseFloat(box.volume_ft3 || 0).toFixed(2);
   const scanCode = getBoxScanCodeFromId(box.box_id) ?? box.box_id;
-  const barcodeSvg = code128(scanCode);
+  const barcodeValue = getBoxBarcodeValueFromId(box.box_id) ?? scanCode;
+  const barcodeSvg = ean13(barcodeValue);
 
   const fmtAddr = (a: any) => {
     if (!a) return "<p style='margin:0;font-size:8px'>N/A</p>";
@@ -142,7 +234,7 @@ function buildDetailLabel(box: any, shipment: any, senderAddr: any, receiverAddr
     <div class="label detail-label">
       <!-- Barcode at top -->
       <div style="text-align:center;margin-bottom:3px;">
-        ${barcodeSvg}
+        <div style="width:46mm;max-width:100%;margin:0 auto;">${barcodeSvg}</div>
         <div style="font-size:7px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-top:2px">Manual code</div>
         <div style="font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;font-weight:700">${escapeHtml(scanCode)}</div>
         <div style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.8px;font-weight:700;color:#555">${escapeHtml(box.box_id)}</div>

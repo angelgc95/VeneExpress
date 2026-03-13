@@ -1,15 +1,18 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import PendingApproval from '@/pages/PendingApproval';
+import AccessRestricted from '@/pages/AccessRestricted';
 
 const ProtectedRoute = ({
   children,
   requireStaff = false,
+  requireAdmin = false,
 }: {
   children: React.ReactNode;
   requireStaff?: boolean;
+  requireAdmin?: boolean;
 }) => {
-  const { user, loading, approved, isStaff } = useAuth();
+  const { user, loading, approved, isAdmin, isStaff } = useAuth();
 
   if (loading) {
     return (
@@ -27,8 +30,12 @@ const ProtectedRoute = ({
     return <PendingApproval />;
   }
 
+  if (requireAdmin && !isAdmin) {
+    return isStaff ? <Navigate to="/dashboard" replace /> : <AccessRestricted />;
+  }
+
   if (requireStaff && !isStaff) {
-    return <Navigate to="/dashboard" replace />;
+    return <AccessRestricted />;
   }
 
   return <>{children}</>;
