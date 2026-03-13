@@ -368,6 +368,7 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
                     <LabelPrintButton
                       shipmentId={shipmentId}
                       boxIds={[box.id]}
+                      boxes={[box]}
                       label=""
                       size="icon"
                       variant="ghost"

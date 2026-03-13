@@ -196,82 +196,76 @@ function escapeHtml(unsafe: any): string {
     .replace(/'/g, '&#039;');
 }
 
-function buildBarcodeLabel(box: any, _shipment: any): string {
-  const scanCode = getBoxScanCodeFromId(box.box_id) ?? box.box_id;
-  const barcodeValue = getBoxBarcodeValueFromId(box.box_id) ?? scanCode;
+function formatAddressBlock(address: any): string {
+  if (!address) {
+    return `<p class="address-line">No address set</p>`;
+  }
+
+  return [
+    `<p class="address-name">${escapeHtml(address.name)}</p>`,
+    address.phone ? `<p class="address-line">${escapeHtml(address.phone)}</p>` : "",
+    `<p class="address-line">${escapeHtml(address.line1)}</p>`,
+    address.line2 ? `<p class="address-line">${escapeHtml(address.line2)}</p>` : "",
+    `<p class="address-line">${escapeHtml(address.city)}${address.state ? `, ${escapeHtml(address.state)}` : ""} ${escapeHtml(address.postal_code || "")}</p>`,
+    `<p class="address-line">${escapeHtml(address.country)}</p>`,
+  ].join("");
+}
+
+function formatMeasurement(value: unknown): string {
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue) || numberValue <= 0) return "";
+  return Number.isInteger(numberValue) ? String(numberValue) : numberValue.toFixed(2);
+}
+
+function buildBarcodeLabel(box: any): string {
+  const barcodeValue = getBoxBarcodeValueFromId(box.box_id) ?? getBoxScanCodeFromId(box.box_id) ?? box.box_id;
   const barcodeSvg = ean13(barcodeValue);
+
   return `
     <div class="label barcode-label">
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;">
-        <div style="width:48mm;max-width:100%;">${barcodeSvg}</div>
-        <div style="font-size:8px;color:#666;text-transform:uppercase;letter-spacing:1px">Manual code</div>
-        <div style="font-family:'Courier New',monospace;font-size:12px;letter-spacing:2px;font-weight:700">${escapeHtml(scanCode)}</div>
-        <div style="font-family:'Courier New',monospace;font-size:9px;color:#555;font-weight:700">${escapeHtml(box.box_id)}</div>
+      <div class="barcode-shell">
+        <div class="barcode-art">${barcodeSvg}</div>
+        <div class="barcode-code">${escapeHtml(box.box_id)}</div>
       </div>
     </div>
   `;
 }
 
 function buildDetailLabel(box: any, shipment: any, senderAddr: any, receiverAddr: any): string {
-  const vol = parseFloat(box.volume_ft3 || 0).toFixed(2);
-  const scanCode = getBoxScanCodeFromId(box.box_id) ?? box.box_id;
-  const barcodeValue = getBoxBarcodeValueFromId(box.box_id) ?? scanCode;
-  const barcodeSvg = ean13(barcodeValue);
-
-  const fmtAddr = (a: any) => {
-    if (!a) return "<p style='margin:0;font-size:8px'>N/A</p>";
-    return `
-      <p style="font-weight:600;margin:0;font-size:9px">${escapeHtml(a.name)}</p>
-      ${a.phone ? `<p style="margin:0;font-size:8px">${escapeHtml(a.phone)}</p>` : ""}
-      <p style="margin:0;font-size:8px">${escapeHtml(a.line1)}</p>
-      ${a.line2 ? `<p style="margin:0;font-size:8px">${escapeHtml(a.line2)}</p>` : ""}
-      <p style="margin:0;font-size:8px">${escapeHtml(a.city)}${a.state ? ", " + escapeHtml(a.state) : ""} ${escapeHtml(a.postal_code || "")}</p>
-      <p style="margin:0;font-size:8px;font-weight:600">${escapeHtml(a.country)}</p>
-    `;
-  };
+  const dimensions = [box.length_in, box.width_in, box.height_in]
+    .map(formatMeasurement)
+    .filter(Boolean)
+    .join(" x ");
+  const footerSegments = [
+    `<span>Box <strong>${escapeHtml(box.box_id)}</strong></span>`,
+    dimensions ? `<span>${escapeHtml(dimensions)} in</span>` : "",
+    box.notes ? `<span>${escapeHtml(box.notes)}</span>` : "",
+  ].filter(Boolean);
 
   return `
     <div class="label detail-label">
-      <!-- Barcode at top -->
-      <div style="text-align:center;margin-bottom:3px;">
-        <div style="width:46mm;max-width:100%;margin:0 auto;">${barcodeSvg}</div>
-        <div style="font-size:7px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-top:2px">Manual code</div>
-        <div style="font-family:'Courier New',monospace;font-size:9px;letter-spacing:1px;font-weight:700">${escapeHtml(scanCode)}</div>
-        <div style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.8px;font-weight:700;color:#555">${escapeHtml(box.box_id)}</div>
-      </div>
+      <div class="detail-card">
+        <div class="detail-header">
+          <div class="detail-header-copy">
+            <div class="eyebrow">Shipment</div>
+            <div class="shipment-number">${escapeHtml(shipment.shipment_id)}</div>
+          </div>
+          <div class="mode-badge ${shipment.service_type === "AIR" ? "air" : "sea"}">${escapeHtml(shipment.service_type)}</div>
+        </div>
 
-      <!-- IDs -->
-      <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
-        <div>
-          <div style="font-size:7px;color:#666;text-transform:uppercase">Shipment</div>
-          <div style="font-size:10px;font-weight:700;font-family:monospace">${escapeHtml(shipment.shipment_id)}</div>
+        <div class="address-grid">
+          <div class="address-panel">
+            <div class="address-label">From</div>
+            ${formatAddressBlock(senderAddr)}
+          </div>
+          <div class="address-panel">
+            <div class="address-label">To</div>
+            ${formatAddressBlock(receiverAddr)}
+          </div>
         </div>
-        <div style="text-align:right">
-          <span style="background:${shipment.service_type === "AIR" ? "#3b82f6" : "#64748b"};color:#fff;padding:1px 8px;border-radius:3px;font-size:9px;font-weight:700;letter-spacing:1px">${shipment.service_type}</span>
-        </div>
-      </div>
 
-      <!-- Addresses -->
-      <div style="display:flex;gap:4px;margin-bottom:3px;flex:1;">
-        <div style="flex:1;border:1px solid #ccc;border-radius:2px;padding:3px;">
-          <div style="font-size:7px;color:#666;text-transform:uppercase;margin-bottom:1px">From</div>
-          ${fmtAddr(senderAddr)}
-        </div>
-        <div style="flex:1;border:1px solid #ccc;border-radius:2px;padding:3px;">
-          <div style="font-size:7px;color:#666;text-transform:uppercase;margin-bottom:1px">To</div>
-          ${fmtAddr(receiverAddr)}
-        </div>
-      </div>
-
-      <!-- Dimensions -->
-      <div style="border:1px solid #ccc;border-radius:2px;padding:3px;display:flex;justify-content:space-around;text-align:center;">
-        <div>
-          <div style="font-size:7px;color:#666">DIMENSIONS</div>
-          <div style="font-weight:600;font-size:9px">${parseFloat(box.length_in)}" × ${parseFloat(box.width_in)}" × ${parseFloat(box.height_in)}"</div>
-        </div>
-        <div>
-          <div style="font-size:7px;color:#666">VOLUME</div>
-          <div style="font-weight:700;font-size:10px">${vol} ft³</div>
+        <div class="detail-footer">
+          ${footerSegments.join("")}
         </div>
       </div>
     </div>
@@ -364,12 +358,11 @@ serve(async (req) => {
     }
 
     const isBarcode = labelType === "barcode";
-    const labelHeight = isBarcode ? "30mm" : "55mm";
 
     const labelsHtml = (boxes || [])
       .map((box: any) =>
         isBarcode
-          ? buildBarcodeLabel(box, shipment)
+          ? buildBarcodeLabel(box)
           : buildDetailLabel(box, shipment, senderAddr, receiverAddr)
       )
       .join("");
@@ -380,22 +373,136 @@ serve(async (req) => {
       <head>
         <meta charset="utf-8"/>
         <style>
-          @page { size: 62mm ${labelHeight}; margin: 0; }
+          @page { size: 4in 6in; margin: 0; }
           * { box-sizing: border-box; }
-          body { margin: 0; padding: 0; }
-          .label {
-            width: 62mm;
-            height: ${labelHeight};
-            padding: 4px 6px;
+          html, body { margin: 0; padding: 0; background: #fff; }
+          body {
+            margin: 0;
+            padding: 0;
+            color: #111827;
             font-family: Arial, Helvetica, sans-serif;
-            font-size: 9px;
-            box-sizing: border-box;
+          }
+          .label {
+            width: 4in;
+            height: 6in;
+            padding: 0.24in;
             page-break-after: always;
             display: flex;
             flex-direction: column;
             overflow: hidden;
           }
           .label:last-child { page-break-after: auto; }
+          .barcode-label {
+            align-items: center;
+            justify-content: center;
+          }
+          .barcode-shell {
+            width: 100%;
+            height: 100%;
+            border: 2px solid #111827;
+            border-radius: 18px;
+            padding: 0.45in 0.32in;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.28in;
+          }
+          .barcode-art {
+            width: 100%;
+            max-width: 3.2in;
+          }
+          .barcode-code {
+            text-align: center;
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: 1.2px;
+            line-height: 1.15;
+          }
+          .detail-card {
+            flex: 1;
+            border: 2px solid #111827;
+            border-radius: 20px;
+            padding: 0.22in;
+            display: flex;
+            flex-direction: column;
+            gap: 0.18in;
+          }
+          .detail-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+          }
+          .detail-header-copy {
+            min-width: 0;
+          }
+          .eyebrow {
+            margin-bottom: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+            color: #6b7280;
+          }
+          .shipment-number {
+            font-size: 28px;
+            font-weight: 800;
+            line-height: 1.05;
+            word-break: break-word;
+          }
+          .mode-badge {
+            border-radius: 999px;
+            padding: 6px 12px;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 1.4px;
+          }
+          .mode-badge.air { background: #2563eb; }
+          .mode-badge.sea { background: #334155; }
+          .address-grid {
+            flex: 1;
+            display: grid;
+            gap: 0.14in;
+          }
+          .address-panel {
+            min-height: 1.62in;
+            border: 1px solid #d1d5db;
+            border-radius: 16px;
+            padding: 0.18in;
+          }
+          .address-label {
+            margin-bottom: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+            color: #6b7280;
+          }
+          .address-name {
+            margin: 0 0 6px;
+            font-size: 17px;
+            font-weight: 700;
+            line-height: 1.2;
+          }
+          .address-line {
+            margin: 0 0 4px;
+            font-size: 14px;
+            line-height: 1.35;
+          }
+          .detail-footer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 16px;
+            padding-top: 0.12in;
+            border-top: 1px solid #e5e7eb;
+            font-size: 12px;
+            color: #4b5563;
+          }
+          .detail-footer strong {
+            color: #111827;
+          }
           @media print {
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .label { page-break-after: always; }

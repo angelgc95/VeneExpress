@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Save, Shield, Plus, Trash2 } from 'lucide-react';
+import PrinterSettingsCard from '@/components/settings/PrinterSettingsCard';
 import type { CompanySettings, PricingRule, StandardItem } from '@/types/shipping';
 
 const Settings = () => {
@@ -214,6 +215,8 @@ const Settings = () => {
           </Button>
         </CardContent>
       </Card>
+
+      <PrinterSettingsCard />
 
       <Card>
         <CardHeader>

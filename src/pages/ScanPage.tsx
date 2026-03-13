@@ -179,57 +179,107 @@ const ScanPage = () => {
 
       html5QrCodeRef.current = scanner;
 
-      let cameraConfig: string | MediaTrackConstraints = { facingMode: { ideal: 'environment' } };
-      let videoConstraints: MediaTrackConstraints = {
-        facingMode: { ideal: 'environment' },
+      const baseVideoConstraints = {
         width: { ideal: 1920 },
         height: { ideal: 1080 },
+      } satisfies MediaTrackConstraints;
+
+      const scannerConfig = {
+        fps: 8,
+        aspectRatio: 4 / 3,
+        disableFlip: false,
+        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => ({
+          width: Math.floor(viewfinderWidth * 0.92),
+          height: Math.max(90, Math.floor(viewfinderHeight * 0.22)),
+        }),
       };
+
+      const startAttempts: Array<{
+        key: string;
+        label: string;
+        cameraConfig: string | MediaTrackConstraints;
+        videoConstraints?: MediaTrackConstraints;
+      }> = [
+        {
+          key: 'environment-exact',
+          label: 'back camera',
+          cameraConfig: { facingMode: { exact: 'environment' } },
+          videoConstraints: { ...baseVideoConstraints, facingMode: { exact: 'environment' } },
+        },
+        {
+          key: 'environment-ideal',
+          label: 'preferred rear camera',
+          cameraConfig: { facingMode: { ideal: 'environment' } },
+          videoConstraints: { ...baseVideoConstraints, facingMode: { ideal: 'environment' } },
+        },
+      ];
+
       try {
         const cameras = await Html5Qrcode.getCameras();
         const rearCamera = cameras.find((camera: CameraDevice) =>
-          /back|rear|environment/i.test(camera.label)
+          /back|rear|environment|wide/i.test(camera.label)
         );
+
         if (rearCamera) {
-          cameraConfig = rearCamera.id;
-          videoConstraints = {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          };
-        } else if (cameras[0]) {
-          cameraConfig = cameras[0].id;
-          videoConstraints = {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          };
+          startAttempts.push({
+            key: `camera-${rearCamera.id}`,
+            label: rearCamera.label || 'rear camera',
+            cameraConfig: rearCamera.id,
+            videoConstraints: baseVideoConstraints,
+          });
+        }
+
+        if (cameras[0] && cameras[0].id !== rearCamera?.id) {
+          startAttempts.push({
+            key: `camera-${cameras[0].id}`,
+            label: cameras[0].label || 'available camera',
+            cameraConfig: cameras[0].id,
+            videoConstraints: baseVideoConstraints,
+          });
         }
       } catch {
-        // Fall back to facingMode when camera enumeration is restricted.
+        // Fall back to facingMode-based attempts when camera enumeration is restricted.
       }
 
-      await scanner.start(
-        cameraConfig,
-        {
-          fps: 8,
-          aspectRatio: 4 / 3,
-          disableFlip: false,
-          videoConstraints,
-          qrbox: (viewfinderWidth, viewfinderHeight) => ({
-            width: Math.floor(viewfinderWidth * 0.92),
-            height: Math.max(90, Math.floor(viewfinderHeight * 0.22)),
-          }),
-        },
-        (decodedText) => {
-          void handleDetectedCode(decodedText);
-        },
-        () => {
-          if (scanningRef.current) {
-            setScanStatus(SCANNER_STATUS_READY);
+      let lastError: unknown = null;
+      let startedWithLabel = 'available camera';
+
+      for (const attempt of startAttempts) {
+        try {
+          setScanStatus(`Starting ${attempt.label}...`);
+          await scanner.start(
+            attempt.cameraConfig,
+            {
+              ...scannerConfig,
+              videoConstraints: attempt.videoConstraints,
+            },
+            (decodedText) => {
+              void handleDetectedCode(decodedText);
+            },
+            () => {
+              if (scanningRef.current) {
+                setScanStatus(SCANNER_STATUS_READY);
+              }
+            }
+          );
+          startedWithLabel = attempt.label;
+          lastError = null;
+          break;
+        } catch (error) {
+          lastError = error;
+          try {
+            await scanner.stop();
+          } catch {
+            // Ignore reset errors between failed start attempts.
           }
         }
-      );
+      }
 
-      setScanStatus(`${SCANNER_STATUS_READY} Optimized for VeneExpress box labels.`);
+      if (lastError) {
+        throw lastError;
+      }
+
+      setScanStatus(`${SCANNER_STATUS_READY} Defaulting to ${startedWithLabel} when available.`);
     } catch (err: unknown) {
       await stopScanner();
       const errorName = err instanceof Error ? err.name : '';
