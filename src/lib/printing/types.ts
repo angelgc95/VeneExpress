@@ -40,9 +40,24 @@ export interface PrintBridgeStatus {
   name: string;
 }
 
+export type PrinterWorkflowState =
+  | "not-configured"
+  | "configured"
+  | "bridge-unavailable"
+  | "ready";
+
+export interface PrinterWorkflowStatus {
+  state: PrinterWorkflowState;
+  label: "Not configured" | "Configured" | "Bridge unavailable" | "Ready";
+  detail: string;
+  printer: PrinterConfig | null;
+  bridge: PrintBridgeStatus;
+}
+
 export interface PrintDispatchResult {
   status: "bridge" | "manual-fallback";
-  reason?: string;
+  message: string;
+  workflow: PrinterWorkflowStatus;
   job: TsplPrintJob;
   printer: PrinterConfig | null;
 }

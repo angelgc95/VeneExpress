@@ -51,15 +51,39 @@ export const buildBarcodeTsplJob = (
   createdAt: new Date().toISOString(),
 });
 
+const buildTestTsplPayload = (createdAt: string) => {
+  const timestamp = createdAt.slice(0, 16).replace("T", " ");
+  return [
+    "SIZE 4.00,6.00",
+    "GAP 0.12,0",
+    "DIRECTION 1",
+    "REFERENCE 0,0",
+    "CLS",
+    'TEXT 60,60,"3",0,2,2,"VeneExpress"',
+    'TEXT 60,120,"3",0,1,1,"Printer integration test"',
+    'TEXT 60,160,"3",0,1,1,"Bridge-ready TSPL payload"',
+    'BARCODE 60,250,"128",180,1,0,2,4,"VENEEXPRESS-TEST"',
+    'TEXT 60,470,"3",0,2,2,"TEST PRINT"',
+    `TEXT 60,530,"3",0,1,1,"${escapeTsplText(timestamp)} UTC"`,
+    "PRINT 1,1",
+  ].join("\n");
+};
+
 export const buildPrinterTestJob = (printerId: string | null): TsplPrintJob => {
+  const createdAt = new Date().toISOString();
   const label: BarcodeLabelPrintData = {
     boxId: "TEST",
-    barcodeValue: "1234567890128",
+    barcodeValue: "VENEEXPRESS-TEST",
     humanReadableCode: "PRINTER TEST",
   };
 
   return {
-    ...buildBarcodeTsplJob([label], printerId),
+    id: createJobId(),
     type: "test-print",
+    printerId,
+    labelSize: "4x6",
+    payload: buildTestTsplPayload(createdAt),
+    labels: [label],
+    createdAt,
   };
 };

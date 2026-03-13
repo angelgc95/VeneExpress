@@ -23,8 +23,17 @@ import {
   setDefaultPrinter,
   upsertPrinter,
 } from "@/lib/printing/storage";
-import { getPrintBridgeStatus, sendPrinterTestLabel } from "@/lib/printing/service";
-import type { PrintBridgeStatus, PrinterConfig, PrinterConnectionType } from "@/lib/printing/types";
+import {
+  describePrinterWorkflow,
+  getPrintBridgeStatus,
+  sendPrinterTestLabel,
+} from "@/lib/printing/service";
+import type {
+  PrintBridgeStatus,
+  PrinterConfig,
+  PrinterConnectionType,
+  PrinterWorkflowState,
+} from "@/lib/printing/types";
 
 const CONNECTION_OPTIONS: Array<{ value: PrinterConnectionType; label: string }> = [
   { value: "manual", label: "Manual browser print" },
@@ -40,6 +49,19 @@ const EMPTY_FORM = {
   connectionType: "manual" as PrinterConnectionType,
 };
 
+const workflowBadgeVariant = (state: PrinterWorkflowState) => {
+  switch (state) {
+    case "ready":
+      return "success" as const;
+    case "bridge-unavailable":
+      return "warning" as const;
+    case "configured":
+      return "secondary" as const;
+    case "not-configured":
+      return "outline" as const;
+  }
+};
+
 const PrinterSettingsCard = () => {
   const [settings, setSettings] = useState(EMPTY_PRINTER_SETTINGS);
   const [bridgeStatus, setBridgeStatus] = useState<PrintBridgeStatus>({
@@ -52,6 +74,7 @@ const PrinterSettingsCard = () => {
   const [refreshingBridge, setRefreshingBridge] = useState(false);
 
   const defaultPrinter = getDefaultPrinter(settings);
+  const defaultWorkflow = describePrinterWorkflow(defaultPrinter, bridgeStatus);
 
   const persistSettings = (nextSettings: typeof settings) => {
     setSettings(nextSettings);
@@ -92,7 +115,7 @@ const PrinterSettingsCard = () => {
 
     persistSettings(nextSettings);
     setForm(EMPTY_FORM);
-    toast.success(form.id ? "Printer updated" : "Printer saved");
+    toast.success(form.id ? "Printer profile updated" : "Printer profile saved");
   };
 
   const handleEditPrinter = (printer: PrinterConfig) => {
@@ -122,9 +145,9 @@ const PrinterSettingsCard = () => {
     try {
       const result = await sendPrinterTestLabel(printerId);
       if (result.status === "bridge") {
-        toast.success(`Test print sent to ${result.printer?.name ?? "printer"}`);
+        toast.success(result.message);
       } else {
-        toast(result.reason ?? "A local print bridge is required for direct test prints");
+        toast(result.message);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to send test print";
@@ -141,29 +164,47 @@ const PrinterSettingsCard = () => {
           <div>
             <CardTitle className="font-heading">Printing</CardTitle>
             <CardDescription>
-              Barcode direct print is bridge-ready for TSPL printers. Browsers still fall back to manual
-              print when no local helper is connected, especially on iPhone Safari.
+              Save printer profiles for daily use, keep browser or PDF fallback available, and let a future
+              local bridge take over one-click TSPL printing when it is installed.
             </CardDescription>
           </div>
-          <Badge variant={bridgeStatus.connected ? "success" : "outline"}>
-            {bridgeStatus.connected ? bridgeStatus.name : "Bridge not connected"}
-          </Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={workflowBadgeVariant(defaultWorkflow.state)}>{defaultWorkflow.label}</Badge>
+            {defaultPrinter && <Badge variant="outline">{defaultPrinter.name}</Badge>}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border p-3">
-          <div className="flex-1">
-            <p className="text-sm font-medium">Bridge status</p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-lg border p-4 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={workflowBadgeVariant(defaultWorkflow.state)}>{defaultWorkflow.label}</Badge>
+              <span className="text-sm font-medium">Default barcode printer</span>
+            </div>
             <p className="text-sm text-muted-foreground">
-              {bridgeStatus.connected
-                ? "TSPL jobs can be handed off to the local print bridge."
-                : "No print bridge detected. Barcode print buttons will keep using browser print fallback."}
+              {defaultWorkflow.detail}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Configured means the printer profile is saved. Ready means the profile is saved and the local bridge is available for direct TSPL output.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => void refreshBridgeStatus()} disabled={refreshingBridge}>
-            {refreshingBridge ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            Refresh
-          </Button>
+          <div className="rounded-lg border p-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={bridgeStatus.connected ? "success" : "outline"}>
+                {bridgeStatus.connected ? "Ready" : "Bridge unavailable"}
+              </Badge>
+              <span className="text-sm font-medium">Bridge helper</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {bridgeStatus.connected
+                ? `${bridgeStatus.name}. Direct barcode print jobs can be handed off immediately.`
+                : "No local helper is connected yet. The app will keep using browser or PDF fallback where needed."}
+            </p>
+            <Button variant="outline" size="sm" onClick={() => void refreshBridgeStatus()} disabled={refreshingBridge}>
+              {refreshingBridge ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              Refresh bridge status
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -208,7 +249,7 @@ const PrinterSettingsCard = () => {
         <div className="flex flex-wrap gap-3">
           <Button onClick={handleSavePrinter}>
             <Printer className="mr-2 h-4 w-4" />
-            {form.id ? "Update printer" : "Save printer"}
+            {form.id ? "Update printer profile" : "Save printer profile"}
           </Button>
           {form.id && (
             <Button variant="outline" onClick={() => setForm(EMPTY_FORM)}>
@@ -225,7 +266,7 @@ const PrinterSettingsCard = () => {
             ) : (
               <Wrench className="mr-2 h-4 w-4" />
             )}
-            Test default printer
+            Send TSPL test print
           </Button>
         </div>
 
@@ -233,7 +274,7 @@ const PrinterSettingsCard = () => {
 
         <div className="space-y-3">
           <div className="space-y-2">
-            <Label>Default printer</Label>
+            <Label>Default barcode printer</Label>
             <Select value={settings.defaultPrinterId ?? "none"} onValueChange={handleDefaultPrinterChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose a default printer" />
@@ -258,11 +299,12 @@ const PrinterSettingsCard = () => {
               {settings.printers.map((printer) => {
                 const isDefault = settings.defaultPrinterId === printer.id;
                 const isTesting = testingPrinterId === printer.id;
+                const workflow = describePrinterWorkflow(printer, bridgeStatus);
 
                 return (
                   <div key={printer.id} className="rounded-lg border p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <p className="font-medium">{printer.name}</p>
                           {isDefault && (
@@ -271,11 +313,13 @@ const PrinterSettingsCard = () => {
                               Default
                             </Badge>
                           )}
+                          <Badge variant={workflowBadgeVariant(workflow.state)}>{workflow.label}</Badge>
                           <Badge variant={printer.connectionType === "manual" ? "outline" : "info"}>
                             {CONNECTION_OPTIONS.find((option) => option.value === printer.connectionType)?.label}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">{printer.model}</p>
+                        <p className="text-sm text-muted-foreground">{workflow.detail}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleEditPrinter(printer)}>
@@ -288,7 +332,7 @@ const PrinterSettingsCard = () => {
                           disabled={isTesting}
                         >
                           {isTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wrench className="mr-2 h-4 w-4" />}
-                          Test
+                          Test print
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleDeletePrinter(printer.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />

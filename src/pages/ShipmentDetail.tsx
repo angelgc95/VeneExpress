@@ -136,7 +136,7 @@ const ShipmentDetail = () => {
           <LabelPrintButton
             shipmentId={shipment.id}
             boxes={boxes}
-            label={`Print Labels (${boxes.length})`}
+            label={`Label Actions (${boxes.length})`}
           />
         )}
       </div>

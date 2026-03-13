@@ -8,6 +8,7 @@ import type {
   PrintBridgeStatus,
   PrintDispatchResult,
   PrinterConfig,
+  PrinterWorkflowStatus,
 } from "@/lib/printing/types";
 
 const getBridge = () => (typeof window === "undefined" ? undefined : window.VeneExpressPrintBridge);
@@ -20,13 +21,84 @@ const resolvePrinter = (printerId?: string | null): PrinterConfig | null => {
   return getDefaultPrinter(settings);
 };
 
+export const describePrinterWorkflow = (
+  printer: PrinterConfig | null,
+  bridgeStatus: PrintBridgeStatus,
+): PrinterWorkflowStatus => {
+  if (!printer) {
+    return {
+      state: "not-configured",
+      label: "Not configured",
+      detail: "No default printer is selected yet. Barcode labels will keep using browser or PDF fallback.",
+      printer: null,
+      bridge: bridgeStatus,
+    };
+  }
+
+  if (printer.connectionType === "manual") {
+    return {
+      state: "configured",
+      label: "Configured",
+      detail: `${printer.name} is saved for browser or PDF fallback. A local bridge is still optional for one-click direct print later.`,
+      printer,
+      bridge: bridgeStatus,
+    };
+  }
+
+  if (!bridgeStatus.connected) {
+    return {
+      state: "bridge-unavailable",
+      label: "Bridge unavailable",
+      detail: `${printer.name} is configured for direct TSPL print, but the local bridge/helper is not connected yet.`,
+      printer,
+      bridge: bridgeStatus,
+    };
+  }
+
+  return {
+    state: "ready",
+    label: "Ready",
+    detail: `${printer.name} is configured and the local bridge is available for direct TSPL printing.`,
+    printer,
+    bridge: bridgeStatus,
+  };
+};
+
+const getBarcodeFallbackMessage = (workflow: PrinterWorkflowStatus) => {
+  switch (workflow.state) {
+    case "not-configured":
+      return "No default printer is configured. Opening the browser or PDF barcode label instead.";
+    case "configured":
+      return "This printer is configured for browser or PDF fallback. Opening the barcode label now.";
+    case "bridge-unavailable":
+      return "Printer is configured, but the local bridge is unavailable. Opening the browser or PDF barcode label instead.";
+    case "ready":
+      return "Direct barcode print is ready.";
+  }
+};
+
+const getTestPrintMessage = (workflow: PrinterWorkflowStatus) => {
+  switch (workflow.state) {
+    case "not-configured":
+      return "TSPL test job prepared, but no default printer is configured yet.";
+    case "configured":
+      return "TSPL test job prepared. This printer profile is browser or PDF fallback only until a direct bridge is used.";
+    case "bridge-unavailable":
+      return "TSPL test job prepared, but the local bridge is unavailable so it was not sent.";
+    case "ready":
+      return "TSPL test print sent successfully.";
+  }
+};
+
 const manualFallback = (
-  reason: string,
-  job: ReturnType<typeof buildBarcodeTsplJob>,
+  message: string,
+  workflow: PrinterWorkflowStatus,
+  job: ReturnType<typeof buildBarcodeTsplJob> | ReturnType<typeof buildPrinterTestJob>,
   printer: PrinterConfig | null,
 ): PrintDispatchResult => ({
   status: "manual-fallback",
-  reason,
+  message,
+  workflow,
   job,
   printer,
 });
@@ -71,23 +143,19 @@ export const printBarcodeLabels = async (
 ): Promise<PrintDispatchResult> => {
   const printer = resolvePrinter(printerId);
   const job = buildBarcodeTsplJob(labels, printer?.id ?? null);
+  const bridgeStatus = await getPrintBridgeStatus();
+  const workflow = describePrinterWorkflow(printer, bridgeStatus);
   const bridge = getBridge();
 
-  if (!printer) {
-    return manualFallback("No default printer configured", job, null);
-  }
-
-  if (printer.connectionType === "manual") {
-    return manualFallback("Printer is configured for manual browser printing", job, printer);
-  }
-
-  if (!bridge?.printTsplJob) {
-    return manualFallback("Print bridge not connected", job, printer);
+  if (workflow.state !== "ready" || !bridge?.printTsplJob) {
+    return manualFallback(getBarcodeFallbackMessage(workflow), workflow, job, printer);
   }
 
   await bridge.printTsplJob(job, printer);
   return {
     status: "bridge",
+    message: `Sent ${labels.length} barcode label(s) to ${printer.name}.`,
+    workflow,
     job,
     printer,
   };
@@ -98,30 +166,20 @@ export const sendPrinterTestLabel = async (
 ): Promise<PrintDispatchResult> => {
   const printer = resolvePrinter(printerId);
   const job = buildPrinterTestJob(printer?.id ?? null);
+  const bridgeStatus = await getPrintBridgeStatus();
+  const workflow = describePrinterWorkflow(printer, bridgeStatus);
   const bridge = getBridge();
 
-  if (!printer) {
-    return {
-      status: "manual-fallback",
-      reason: "No printer selected",
-      job,
-      printer: null,
-    };
-  }
-
-  if (printer.connectionType === "manual") {
-    return {
-      status: "manual-fallback",
-      reason: "Manual printer profiles do not support direct bridge test prints",
-      job,
-      printer,
-    };
+  if (workflow.state !== "ready") {
+    return manualFallback(getTestPrintMessage(workflow), workflow, job, printer);
   }
 
   if (bridge?.testPrint) {
     await bridge.testPrint(job, printer);
     return {
       status: "bridge",
+      message: `Sent TSPL test print to ${printer.name}.`,
+      workflow,
       job,
       printer,
     };
@@ -131,15 +189,12 @@ export const sendPrinterTestLabel = async (
     await bridge.printTsplJob(job, printer);
     return {
       status: "bridge",
+      message: `Sent TSPL test print to ${printer.name}.`,
+      workflow,
       job,
       printer,
     };
   }
 
-  return {
-    status: "manual-fallback",
-    reason: "Print bridge not connected",
-    job,
-    printer,
-  };
+  return manualFallback(getTestPrintMessage(workflow), workflow, job, printer);
 };

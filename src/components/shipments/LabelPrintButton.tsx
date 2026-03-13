@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Printer } from 'lucide-react';
+import { Download, FileText, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   DropdownMenu,
@@ -32,12 +32,12 @@ const LabelPrintButton = ({
   shipmentId,
   boxIds,
   boxes = [],
-  label = 'Print Labels',
+  label = 'Label Actions',
   variant = 'outline',
   size = 'sm',
   singleBox = false,
 }: LabelPrintButtonProps) => {
-  const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<null | 'barcode-print' | 'barcode-download' | 'detail-print'>(null);
 
   const loadBoxes = async (): Promise<PrintableBox[]> => {
     const knownBoxes = boxIds?.length
@@ -98,14 +98,20 @@ const LabelPrintButton = ({
     toast.success(`${data.count} ${typeLabel} label(s) ready to print`);
   };
 
-  const handlePrint = async (labelType: 'barcode' | 'detail') => {
-    setLoading(true);
+  const handleDetailsPrint = async () => {
+    setLoadingAction('detail-print');
     try {
-      if (labelType === 'detail') {
-        await handleManualPrint('detail');
-        return;
-      }
+      await handleManualPrint('detail');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to generate labels');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
 
+  const handleBarcodePrint = async () => {
+    setLoadingAction('barcode-print');
+    try {
       const printableBoxes = await loadBoxes();
       if (printableBoxes.length === 0) {
         throw new Error('No boxes available to print');
@@ -123,45 +129,86 @@ const LabelPrintButton = ({
       );
 
       if (printResult.status === 'bridge') {
-        toast.success(`Sent ${printableBoxes.length} barcode label(s) to ${printResult.printer?.name ?? 'printer'}`);
+        toast.success(printResult.message);
         return;
       }
 
-      toast(printResult.reason === 'No default printer configured'
-        ? 'No default printer is configured. Opening browser print instead.'
-        : printResult.reason === 'Printer is configured for manual browser printing'
-          ? 'This printer profile uses manual browser printing. Opening printable barcode labels.'
-          : 'Local print bridge not connected. Opening printable barcode labels instead.');
-
+      toast(printResult.message);
       await handleManualPrint('barcode');
     } catch (e: any) {
       toast.error(e.message || 'Failed to generate labels');
     } finally {
-      setLoading(false);
+      setLoadingAction(null);
     }
+  };
+
+  const handleBarcodeDownload = async () => {
+    setLoadingAction('barcode-download');
+    try {
+      await handleManualPrint('barcode');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to generate labels');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const buttonLabel = () => {
+    if (!label) return null;
+    if (loadingAction === 'barcode-print') return 'Printing...';
+    if (loadingAction === 'barcode-download') return 'Preparing...';
+    if (loadingAction === 'detail-print') return 'Opening...';
+    return label;
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant={variant} size={size} disabled={loading}>
+        <Button
+          variant={variant}
+          size={size}
+          disabled={loadingAction !== null}
+          aria-label={singleBox ? 'Label actions for this box' : 'Label actions'}
+          title={singleBox ? 'Label actions for this box' : 'Label actions'}
+        >
           <Printer className={`h-4 w-4 ${label ? 'mr-1.5' : ''}`} />
-          {label ? (loading ? 'Working...' : label) : null}
+          {buttonLabel()}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuLabel className="text-xs text-muted-foreground">
-          {singleBox ? 'This Box' : 'All Boxes'}
+          {singleBox ? 'This box' : 'All boxes'}
         </DropdownMenuLabel>
         <DropdownMenuLabel className="max-w-56 text-[11px] font-normal leading-relaxed text-muted-foreground">
-          Barcode print uses the local TSPL bridge when configured, then falls back to browser print.
+          Direct barcode print uses the local TSPL bridge when it is ready. Browser or PDF fallback is always available.
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => handlePrint('detail')}>
-          📋 Details Label
+        <DropdownMenuItem onClick={() => void handleBarcodePrint()} className="flex-col items-start gap-1 py-2">
+          <div className="flex items-center gap-2 font-medium">
+            <Printer className="h-4 w-4" />
+            Print barcode label
+          </div>
+          <div className="text-xs leading-relaxed text-muted-foreground">
+            Sends a TSPL job when the printer workflow is ready. Otherwise opens the browser fallback automatically.
+          </div>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handlePrint('barcode')}>
-          ▮▮▮ Barcode Label
+        <DropdownMenuItem onClick={() => void handleBarcodeDownload()} className="flex-col items-start gap-1 py-2">
+          <div className="flex items-center gap-2 font-medium">
+            <Download className="h-4 w-4" />
+            Download barcode label
+          </div>
+          <div className="text-xs leading-relaxed text-muted-foreground">
+            Opens the browser or PDF label directly, without trying a printer bridge first.
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => void handleDetailsPrint()} className="flex-col items-start gap-1 py-2">
+          <div className="flex items-center gap-2 font-medium">
+            <FileText className="h-4 w-4" />
+            Print details label
+          </div>
+          <div className="text-xs leading-relaxed text-muted-foreground">
+            Opens the details label in the browser print flow for paper, PDF, or thermal output.
+          </div>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
