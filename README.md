@@ -1,73 +1,128 @@
-# Welcome to your Lovable project
+# VeneExpress
 
-## Project info
+VeneExpress is an independently owned logistics and shipping platform, personally built and maintained for day-to-day shipment operations. It covers customer records, shipment intake, box handling, invoicing, payments, and public tracking from a locally controlled codebase and Supabase backend.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Overview
 
-## How can I edit this code?
+This repository is the working source of truth for VeneExpress.
 
-There are several ways of editing your application.
+- Public users can track shipments and estimate pricing.
+- Staff can create shipments, manage boxes, scan incoming items, and work through shipment status changes.
+- Administrators can manage approvals, roles, company settings, pricing rules, and other operational data.
 
-**Use Lovable**
+The project no longer depends on Lovable-managed infrastructure. Its current frontend, backend, and migration artifacts are maintained directly from this repository and an owned Supabase project.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Core Capabilities
 
-Changes made via Lovable will be committed automatically to this repo.
+- Customer management
+- Shipment creation with sender and receiver addresses
+- Sea and air service workflows
+- Box intake with dimensions, barcode-based scan support, and shipment association
+- Shipment status tracking with public tracking codes
+- Invoice generation, invoice line items, and payment recording
+- Admin approvals and role-based access for staff, admin, and read-only users
+- Public contact, pricing estimator, and tracking entry points
 
-**Use your preferred IDE**
+## Current Architecture
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Frontend: Vite, React, TypeScript, React Router, TanStack Query, Tailwind CSS, and shadcn/ui
+- Backend: owned Supabase project used for Postgres, auth, RPCs, and row-level security
+- Browser client: `src/integrations/supabase/client.ts`
+- Database history and policies: `supabase/migrations/`
+- Edge Functions: `supabase/functions/generate-invoice/` and `supabase/functions/generate-label/`
+- Migration artifacts: `migration-ready/` and `migration-exports/`
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+The frontend can be hosted independently on a standard static host. Operational backend behavior lives in Supabase rather than in a hosted Lovable environment.
 
-Follow these steps:
+## Project Evolution
+
+VeneExpress started with Lovable as an early accelerator for the first prototype. That initial phase was useful for getting the first working logistics workflow online quickly, but it was not the long-term operating model.
+
+The codebase was later migrated into local ownership and control. Lovable-specific managed-project residue was removed from the application, and this repository became the maintained source of truth.
+
+The backend was then moved from Lovable Cloud to an owned Supabase project. Supabase migrations were applied successfully, Supabase Edge Functions were deployed successfully, and the migrated transactional flows were validated on the new backend.
+
+Today, VeneExpress is independently maintained from this local repository and owned infrastructure. Auth/user recreation and production hosting cutover are intentionally being handled as separate controlled steps rather than folded into the backend migration itself.
+
+## Current Status
+
+- The repo reflects the independently maintained version of VeneExpress under local ownership and control.
+- The owned Supabase backend is in place and validated for existing operational flows.
+- Existing shipment and invoice views work on the migrated backend.
+- A new validation shipment was created successfully as shipment number `17`.
+- Auth/user recreation remains a separate manual step.
+- Production hosting and custom-domain cutover remain separate later steps.
+
+## Local Development
+
+### Requirements
+
+- Node.js 18+
+- npm
+
+### Environment
+
+Create a local `.env` file with:
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_PUBLISHABLE_KEY=...
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Run Locally
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```sh
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Available Scripts
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+npm run dev
+npm run build
+npm run preview
+npm run lint
+npm run test
+npm run test:watch
+```
 
-**Use GitHub Codespaces**
+## Supabase / Backend Notes
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- Schema changes, RLS policies, RPC definitions, and backend corrections are tracked under `supabase/migrations/`.
+- The app relies on Supabase for operational data access rather than a Lovable-managed backend.
+- Invoice and label generation are handled through deployed Supabase Edge Functions.
+- Migration CSVs used during backend takeover are kept in `migration-ready/` and `migration-exports/` for operational reference.
 
-## What technologies are used for this project?
+If this project is pointed at a different Supabase instance in the future, the migrations and Edge Functions need to be applied there before labels, invoices, and shipment workflows will behave consistently.
 
-This project is built with:
+## Data Migration Status
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+The owned Supabase backend has already received the core transactional dataset for:
 
-## How can I deploy this project?
+- `customers`
+- `addresses`
+- `shipments`
+- `boxes`
+- `invoices`
+- `invoice_line_items`
+- `payments`
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Post-migration counter corrections completed successfully:
 
-## Can I connect a custom domain to my Lovable project?
+- `shipment_counter` synced to `16`
+- `invoice_counter` synced to `27`
 
-Yes, you can!
+Local validation already completed on the migrated backend:
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- Existing shipment view works
+- Existing invoice view works
+- New test shipment created successfully as shipment number `17`
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Auth Note
+
+Auth and user recreation are being handled manually as a separate controlled step. This repository should not be read as claiming that user migration was automated or fully completed as part of the transactional data migration.
+
+## Deployment Note
+
+Production hosting and custom-domain cutover are separate later steps. Until that cutover is intentionally completed, treat this repository and the owned Supabase project as the current technical source of truth, but do not assume final production routing from the repo alone.

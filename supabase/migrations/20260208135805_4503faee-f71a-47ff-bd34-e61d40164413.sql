@@ -22,10 +22,10 @@ CREATE POLICY "Admins can manage allowlist" ON public.admin_allowlist
 
 -- 3. Public tracking code on shipments (unguessable random string)
 ALTER TABLE public.shipments 
-  ADD COLUMN IF NOT EXISTS public_tracking_code text UNIQUE DEFAULT encode(gen_random_bytes(16), 'hex');
+  ADD COLUMN IF NOT EXISTS public_tracking_code text UNIQUE DEFAULT encode(extensions.gen_random_bytes(16), 'hex');
 
 UPDATE public.shipments 
-  SET public_tracking_code = encode(gen_random_bytes(16), 'hex') 
+  SET public_tracking_code = encode(extensions.gen_random_bytes(16), 'hex') 
   WHERE public_tracking_code IS NULL;
 
 -- 4. Update handle_new_user: first user = admin+approved, allowlisted = admin+approved, others = staff+pending
