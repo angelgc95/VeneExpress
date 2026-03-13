@@ -224,7 +224,11 @@ function buildBarcodeLabel(box: any): string {
   return `
     <div class="label barcode-label">
       <div class="barcode-shell">
-        <div class="barcode-art">${barcodeSvg}</div>
+        <div class="barcode-stage">
+          <div class="barcode-rotator">
+            <div class="barcode-art">${barcodeSvg}</div>
+          </div>
+        </div>
         <div class="barcode-code">${escapeHtml(box.box_id)}</div>
       </div>
     </div>
@@ -401,20 +405,38 @@ serve(async (req) => {
             height: 100%;
             border: 2px solid #111827;
             border-radius: 18px;
-            padding: 0.45in 0.32in;
+            padding: 0.28in 0.24in 0.22in;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 0.28in;
+            gap: 0.16in;
+          }
+          .barcode-stage {
+            position: relative;
+            width: 100%;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+          }
+          .barcode-rotator {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 4.85in;
+            transform: translate(-50%, -50%) rotate(90deg);
+            transform-origin: center;
           }
           .barcode-art {
             width: 100%;
-            max-width: 3.2in;
+            max-width: none;
           }
           .barcode-code {
             text-align: center;
-            font-size: 20px;
+            width: 100%;
+            padding-top: 0.08in;
+            border-top: 1px solid #d1d5db;
+            font-size: 18px;
             font-weight: 800;
             letter-spacing: 1.2px;
             line-height: 1.15;
