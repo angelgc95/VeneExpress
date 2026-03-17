@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Clock, Plus } from 'lucide-react';
 import { format } from 'date-fns';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { StatusEvent, ShipmentStatus } from '@/types/shipping';
 
 const STATUSES: ShipmentStatus[] = ['Label Created', 'Received', 'Shipped', 'Arrived in Destination', 'Released by Customs', 'Ready for Delivery', 'Delivered'];
@@ -37,6 +38,7 @@ interface StatusTimelineProps {
 const StatusTimeline = ({ shipmentId, currentStatus, onStatusChange }: StatusTimelineProps) => {
   const queryClient = useQueryClient();
   const { user, isStaff } = useAuth();
+  const { t, dateLocale } = useTranslation();
   const [newStatus, setNewStatus] = useState<string>('');
   const [note, setNote] = useState('');
 
@@ -55,7 +57,7 @@ const StatusTimeline = ({ shipmentId, currentStatus, onStatusChange }: StatusTim
 
   const addMutation = useMutation({
     mutationFn: async () => {
-      if (!newStatus) throw new Error('Select a status');
+      if (!newStatus) throw new Error(t('Select a status'));
 
       const { error: eventError } = await (supabase as any).from('status_events').insert({
         shipment_id: shipmentId,
@@ -77,7 +79,7 @@ const StatusTimeline = ({ shipmentId, currentStatus, onStatusChange }: StatusTim
       setNewStatus('');
       setNote('');
       onStatusChange?.();
-      toast.success('Status updated');
+      toast.success(t('Status updated'));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -88,22 +90,22 @@ const StatusTimeline = ({ shipmentId, currentStatus, onStatusChange }: StatusTim
       {isStaff && (
         <div className="flex flex-wrap items-end gap-3 p-4 bg-muted rounded-lg">
           <div className="space-y-1 flex-1 min-w-[150px]">
-            <Label className="text-xs">New Status</Label>
+            <Label className="text-xs">{t('New Status')}</Label>
             <Select value={newStatus} onValueChange={setNewStatus}>
-              <SelectTrigger><SelectValue placeholder="Select status..." /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t('Select status...')} /></SelectTrigger>
               <SelectContent>
                 {STATUSES.map(s => (
-                  <SelectItem key={s} value={s} disabled={s === currentStatus}>{s}</SelectItem>
+                  <SelectItem key={s} value={s} disabled={s === currentStatus}>{t(s)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1 flex-1 min-w-[200px]">
-            <Label className="text-xs">Note (optional)</Label>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note..." />
+            <Label className="text-xs">{t('Note (optional)')}</Label>
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('Add a note...')} />
           </div>
           <Button size="sm" onClick={() => addMutation.mutate()} disabled={addMutation.isPending || !newStatus}>
-            <Plus className="h-4 w-4 mr-1" /> Update Status
+            <Plus className="h-4 w-4 mr-1" /> {t('Update Status')}
           </Button>
         </div>
       )}
@@ -120,10 +122,10 @@ const StatusTimeline = ({ shipmentId, currentStatus, onStatusChange }: StatusTim
               </div>
               <div className="flex-1 pb-2">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant={i === 0 ? 'default' : 'outline'} className="text-xs">{event.status}</Badge>
+                  <Badge variant={i === 0 ? 'default' : 'outline'} className="text-xs">{t(event.status)}</Badge>
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {format(new Date(event.created_at), 'MMM d, yyyy HH:mm')}
+                    {format(new Date(event.created_at), 'MMM d, yyyy HH:mm', { locale: dateLocale })}
                   </span>
                 </div>
                 {event.note && (
@@ -133,7 +135,7 @@ const StatusTimeline = ({ shipmentId, currentStatus, onStatusChange }: StatusTim
             </div>
           ))}
           {events.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-6">No status events yet</p>
+            <p className="text-sm text-muted-foreground text-center py-6">{t('No status events yet')}</p>
           )}
         </div>
       </div>

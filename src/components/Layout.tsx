@@ -10,23 +10,25 @@ import {
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { cn } from '@/lib/utils';
-
-const navItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-  { label: 'Shipments', icon: Package, path: '/shipments' },
-  { label: 'Customers', icon: Users, path: '/customers' },
-  { label: 'Scan', icon: ScanLine, path: '/scan' },
-];
-
-const adminNavItems = [
-  { label: 'Approvals', icon: ShieldCheck, path: '/admin/approvals' },
-  { label: 'Settings', icon: Settings, path: '/settings' },
-];
+import { useTranslation } from '@/hooks/useTranslation';
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const { user, role, isAdmin, isStaff, signOut } = useAuth();
+  const { t } = useTranslation();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const navItems = [
+    { label: t('Dashboard'), icon: LayoutDashboard, path: '/dashboard' },
+    { label: t('Shipments'), icon: Package, path: '/shipments' },
+    { label: t('Customers'), icon: Users, path: '/customers' },
+    { label: t('Scan'), icon: ScanLine, path: '/scan' },
+    { label: t('Settings'), icon: Settings, path: '/settings' },
+  ];
+
+  const adminNavItems = [
+    { label: t('Approvals'), icon: ShieldCheck, path: '/admin/approvals' },
+  ];
 
   const { data: pendingCount = 0 } = useQuery({
     queryKey: ['pending-approvals-count'],
@@ -101,7 +103,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{user?.email}</p>
-              <p className="text-xs text-sidebar-foreground/50 capitalize">{role}</p>
+              <p className="text-xs text-sidebar-foreground/50 capitalize">{role ? t(role) : role}</p>
             </div>
           </div>
           <Button
@@ -110,7 +112,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             onClick={signOut}
           >
             <LogOut className="h-4 w-4 mr-2" />
-            Sign out
+            {t('Sign out')}
           </Button>
         </div>
       </aside>

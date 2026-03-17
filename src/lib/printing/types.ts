@@ -50,6 +50,7 @@ export interface PrinterWorkflowStatus {
   state: PrinterWorkflowState;
   label: "Not configured" | "Configured" | "Bridge unavailable" | "Ready";
   detail: string;
+  detailVariables?: Record<string, string | number>;
   printer: PrinterConfig | null;
   bridge: PrintBridgeStatus;
 }
@@ -57,6 +58,7 @@ export interface PrinterWorkflowStatus {
 export interface PrintDispatchResult {
   status: "bridge" | "manual-fallback";
   message: string;
+  messageVariables?: Record<string, string | number>;
   workflow: PrinterWorkflowStatus;
   job: TsplPrintJob;
   printer: PrinterConfig | null;

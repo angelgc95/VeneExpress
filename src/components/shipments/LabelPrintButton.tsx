@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { getBoxBarcodeValueFromId, getBoxScanCodeFromId } from '@/lib/scan-codes';
 import { printBarcodeLabels } from '@/lib/printing/service';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Box } from '@/types/shipping';
 
 type PrintableBox = Pick<Box, 'id' | 'box_id'>;
@@ -37,6 +38,7 @@ const LabelPrintButton = ({
   size = 'sm',
   singleBox = false,
 }: LabelPrintButtonProps) => {
+  const { t } = useTranslation();
   const [loadingAction, setLoadingAction] = useState<null | 'barcode-print' | 'barcode-download' | 'detail-print'>(null);
 
   const loadBoxes = async (): Promise<PrintableBox[]> => {
@@ -66,7 +68,7 @@ const LabelPrintButton = ({
   const openBrowserPrintWindow = (html: string) => {
     const printWindow = window.open('', '_blank', 'width=420,height=680');
     if (!printWindow) {
-      toast.error('Pop-up blocked. Please allow pop-ups for this site.');
+      toast.error(t('Pop-up blocked. Please allow pop-ups for this site.'));
       return false;
     }
 
@@ -88,14 +90,14 @@ const LabelPrintButton = ({
     });
 
     if (error) throw error;
-    if (!data?.html) throw new Error('No label HTML returned');
+    if (!data?.html) throw new Error(t('No label HTML returned'));
 
     if (!openBrowserPrintWindow(data.html)) {
       return;
     }
 
-    const typeLabel = labelType === 'barcode' ? 'barcode' : 'detail';
-    toast.success(`${data.count} ${typeLabel} label(s) ready to print`);
+    const typeLabel = labelType === 'barcode' ? t('barcode') : t('detail');
+    toast.success(t('{count} {type} label(s) ready to print', { count: data.count, type: typeLabel }));
   };
 
   const handleDetailsPrint = async () => {
@@ -103,7 +105,7 @@ const LabelPrintButton = ({
     try {
       await handleManualPrint('detail');
     } catch (e: any) {
-      toast.error(e.message || 'Failed to generate labels');
+      toast.error(e.message || t('Failed to generate labels'));
     } finally {
       setLoadingAction(null);
     }
@@ -114,7 +116,7 @@ const LabelPrintButton = ({
     try {
       const printableBoxes = await loadBoxes();
       if (printableBoxes.length === 0) {
-        throw new Error('No boxes available to print');
+        throw new Error(t('No boxes available to print'));
       }
 
       const printResult = await printBarcodeLabels(
@@ -129,14 +131,14 @@ const LabelPrintButton = ({
       );
 
       if (printResult.status === 'bridge') {
-        toast.success(printResult.message);
+        toast.success(t(printResult.message, printResult.messageVariables));
         return;
       }
 
-      toast(printResult.message);
+      toast(t(printResult.message, printResult.messageVariables));
       await handleManualPrint('barcode');
     } catch (e: any) {
-      toast.error(e.message || 'Failed to generate labels');
+      toast.error(e.message || t('Failed to generate labels'));
     } finally {
       setLoadingAction(null);
     }
@@ -147,7 +149,7 @@ const LabelPrintButton = ({
     try {
       await handleManualPrint('barcode');
     } catch (e: any) {
-      toast.error(e.message || 'Failed to generate labels');
+      toast.error(e.message || t('Failed to generate labels'));
     } finally {
       setLoadingAction(null);
     }
@@ -155,10 +157,10 @@ const LabelPrintButton = ({
 
   const buttonLabel = () => {
     if (!label) return null;
-    if (loadingAction === 'barcode-print') return 'Printing...';
-    if (loadingAction === 'barcode-download') return 'Preparing...';
-    if (loadingAction === 'detail-print') return 'Opening...';
-    return label;
+    if (loadingAction === 'barcode-print') return t('Printing...');
+    if (loadingAction === 'barcode-download') return t('Preparing...');
+    if (loadingAction === 'detail-print') return t('Opening...');
+    return t(label);
   };
 
   return (
@@ -168,8 +170,8 @@ const LabelPrintButton = ({
           variant={variant}
           size={size}
           disabled={loadingAction !== null}
-          aria-label={singleBox ? 'Label actions for this box' : 'Label actions'}
-          title={singleBox ? 'Label actions for this box' : 'Label actions'}
+          aria-label={singleBox ? t('Label actions for this box') : t('Label Actions')}
+          title={singleBox ? t('Label actions for this box') : t('Label Actions')}
         >
           <Printer className={`h-4 w-4 ${label ? 'mr-1.5' : ''}`} />
           {buttonLabel()}
@@ -177,37 +179,37 @@ const LabelPrintButton = ({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuLabel className="text-xs text-muted-foreground">
-          {singleBox ? 'This box' : 'All boxes'}
+          {singleBox ? t('This box') : t('All boxes')}
         </DropdownMenuLabel>
         <DropdownMenuLabel className="max-w-56 text-[11px] font-normal leading-relaxed text-muted-foreground">
-          Direct barcode print uses the local TSPL bridge when it is ready. Browser or PDF fallback is always available.
+          {t('Direct barcode print uses the local TSPL bridge when it is ready. Browser or PDF fallback is always available.')}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => void handleBarcodePrint()} className="flex-col items-start gap-1 py-2">
           <div className="flex items-center gap-2 font-medium">
             <Printer className="h-4 w-4" />
-            Print barcode label
+            {t('Print barcode label')}
           </div>
           <div className="text-xs leading-relaxed text-muted-foreground">
-            Sends a TSPL job when the printer workflow is ready. Otherwise opens the browser fallback automatically.
+            {t('Sends a TSPL job when the printer workflow is ready. Otherwise opens the browser fallback automatically.')}
           </div>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => void handleBarcodeDownload()} className="flex-col items-start gap-1 py-2">
           <div className="flex items-center gap-2 font-medium">
             <Download className="h-4 w-4" />
-            Download barcode label
+            {t('Download barcode label')}
           </div>
           <div className="text-xs leading-relaxed text-muted-foreground">
-            Opens the browser or PDF label directly, without trying a printer bridge first.
+            {t('Opens the browser or PDF label directly, without trying a printer bridge first.')}
           </div>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => void handleDetailsPrint()} className="flex-col items-start gap-1 py-2">
           <div className="flex items-center gap-2 font-medium">
             <FileText className="h-4 w-4" />
-            Print details label
+            {t('Print details label')}
           </div>
           <div className="text-xs leading-relaxed text-muted-foreground">
-            Opens the details label in the browser print flow for paper, PDF, or thermal output.
+            {t('Opens the details label in the browser print flow for paper, PDF, or thermal output.')}
           </div>
         </DropdownMenuItem>
       </DropdownMenuContent>

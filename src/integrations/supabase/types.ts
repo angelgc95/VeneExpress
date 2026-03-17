@@ -160,6 +160,14 @@ export type Database = {
           last_name: string
           notes: string | null
           phone: string | null
+          shipping_city: string | null
+          shipping_country: string | null
+          shipping_line1: string | null
+          shipping_line2: string | null
+          shipping_name: string | null
+          shipping_phone: string | null
+          shipping_postal_code: string | null
+          shipping_state: string | null
         }
         Insert: {
           created_at?: string
@@ -169,6 +177,14 @@ export type Database = {
           last_name: string
           notes?: string | null
           phone?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_line1?: string | null
+          shipping_line2?: string | null
+          shipping_name?: string | null
+          shipping_phone?: string | null
+          shipping_postal_code?: string | null
+          shipping_state?: string | null
         }
         Update: {
           created_at?: string
@@ -178,6 +194,14 @@ export type Database = {
           last_name?: string
           notes?: string | null
           phone?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_line1?: string | null
+          shipping_line2?: string | null
+          shipping_name?: string | null
+          shipping_phone?: string | null
+          shipping_postal_code?: string | null
+          shipping_state?: string | null
         }
         Relationships: []
       }
@@ -402,6 +426,7 @@ export type Database = {
           created_at: string
           full_name: string | null
           id: string
+          preferred_language: string
           user_id: string
         }
         Insert: {
@@ -409,6 +434,7 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          preferred_language?: string
           user_id: string
         }
         Update: {
@@ -416,6 +442,7 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          preferred_language?: string
           user_id?: string
         }
         Relationships: []

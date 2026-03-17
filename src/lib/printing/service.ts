@@ -39,7 +39,8 @@ export const describePrinterWorkflow = (
     return {
       state: "configured",
       label: "Configured",
-      detail: `${printer.name} is saved for browser or PDF fallback. A local bridge is still optional for one-click direct print later.`,
+      detail: "{printerName} is saved for browser or PDF fallback. A local bridge is still optional for one-click direct print later.",
+      detailVariables: { printerName: printer.name },
       printer,
       bridge: bridgeStatus,
     };
@@ -49,7 +50,8 @@ export const describePrinterWorkflow = (
     return {
       state: "bridge-unavailable",
       label: "Bridge unavailable",
-      detail: `${printer.name} is configured for direct TSPL print, but the local bridge/helper is not connected yet.`,
+      detail: "{printerName} is configured for direct TSPL print, but the local bridge/helper is not connected yet.",
+      detailVariables: { printerName: printer.name },
       printer,
       bridge: bridgeStatus,
     };
@@ -58,7 +60,8 @@ export const describePrinterWorkflow = (
   return {
     state: "ready",
     label: "Ready",
-    detail: `${printer.name} is configured and the local bridge is available for direct TSPL printing.`,
+    detail: "{printerName} is configured and the local bridge is available for direct TSPL printing.",
+    detailVariables: { printerName: printer.name },
     printer,
     bridge: bridgeStatus,
   };
@@ -95,9 +98,11 @@ const manualFallback = (
   workflow: PrinterWorkflowStatus,
   job: ReturnType<typeof buildBarcodeTsplJob> | ReturnType<typeof buildPrinterTestJob>,
   printer: PrinterConfig | null,
+  messageVariables?: Record<string, string | number>,
 ): PrintDispatchResult => ({
   status: "manual-fallback",
   message,
+  messageVariables,
   workflow,
   job,
   printer,
@@ -154,7 +159,8 @@ export const printBarcodeLabels = async (
   await bridge.printTsplJob(job, printer);
   return {
     status: "bridge",
-    message: `Sent ${labels.length} barcode label(s) to ${printer.name}.`,
+    message: "Sent {count} barcode label(s) to {printerName}.",
+    messageVariables: { count: labels.length, printerName: printer.name },
     workflow,
     job,
     printer,
@@ -178,7 +184,8 @@ export const sendPrinterTestLabel = async (
     await bridge.testPrint(job, printer);
     return {
       status: "bridge",
-      message: `Sent TSPL test print to ${printer.name}.`,
+      message: "Sent TSPL test print to {printerName}.",
+      messageVariables: { printerName: printer.name },
       workflow,
       job,
       printer,
@@ -189,7 +196,8 @@ export const sendPrinterTestLabel = async (
     await bridge.printTsplJob(job, printer);
     return {
       status: "bridge",
-      message: `Sent TSPL test print to ${printer.name}.`,
+      message: "Sent TSPL test print to {printerName}.",
+      messageVariables: { printerName: printer.name },
       workflow,
       job,
       printer,

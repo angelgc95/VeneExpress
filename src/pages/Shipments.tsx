@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Plus, Search, Package, RefreshCw, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Shipment, ShipmentStatus } from '@/types/shipping';
 
 const statusVariant = (status: ShipmentStatus) => {
@@ -31,6 +32,7 @@ const ALL_STATUSES: ShipmentStatus[] = ['Label Created', 'Received', 'Shipped', 
 const Shipments = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t, dateLocale } = useTranslation();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -62,7 +64,7 @@ const Shipments = () => {
       queryClient.invalidateQueries({ queryKey: ['shipments'] });
       setSelected(new Set());
       setBulkStatus('');
-      toast.success(`${ids.length} shipment(s) updated to "${status}"`);
+      toast.success(t('{count} shipment(s) updated to "{status}"', { count: ids.length, status: t(status) }));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -80,7 +82,7 @@ const Shipments = () => {
       queryClient.invalidateQueries({ queryKey: ['shipments'] });
       setSelected(new Set());
       setCancelDialogOpen(false);
-      toast.success(`${count} shipment(s) cancelled`);
+      toast.success(t('{count} shipment(s) cancelled', { count }));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -122,19 +124,19 @@ const Shipments = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold font-heading">Shipments</h1>
-          <p className="text-muted-foreground text-sm">{shipments.length} total shipments</p>
+          <h1 className="text-2xl font-bold font-heading">{t('Shipments')}</h1>
+          <p className="text-muted-foreground text-sm">{t('{count} total shipments', { count: shipments.length })}</p>
         </div>
         <div className="flex items-center gap-2">
           {selected.size > 0 && (
             <div className="flex items-center gap-2">
               <Select value={bulkStatus} onValueChange={setBulkStatus}>
                 <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Set status..." />
+                  <SelectValue placeholder={t('Set status...')} />
                 </SelectTrigger>
                 <SelectContent>
                   {ALL_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                    <SelectItem key={s} value={s}>{t(s)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -143,7 +145,7 @@ const Shipments = () => {
                 disabled={!bulkStatus || bulkStatusMutation.isPending}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Update {selected.size}
+                {t('Update {count}', { count: selected.size })}
               </Button>
               <Button
                 variant="destructive"
@@ -151,12 +153,12 @@ const Shipments = () => {
                 disabled={cancelShipmentsMutation.isPending}
               >
                 <XCircle className="h-4 w-4 mr-2" />
-                Cancel {selected.size}
+                {t('Cancel {count}', { count: selected.size })}
               </Button>
             </div>
           )}
           <Button onClick={() => navigate('/shipments/new')} className="bg-accent text-accent-foreground hover:bg-accent/90">
-            <Plus className="h-4 w-4 mr-2" /> New Shipment
+            <Plus className="h-4 w-4 mr-2" /> {t('New Shipment')}
           </Button>
         </div>
       </div>
@@ -167,7 +169,7 @@ const Shipments = () => {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by ID or customer..."
+                placeholder={t('Search by ID or customer...')}
                 className="pl-10"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -175,12 +177,12 @@ const Shipments = () => {
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="All Statuses" />
+                <SelectValue placeholder={t('All Statuses')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="all">{t('All Statuses')}</SelectItem>
                 {ALL_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                  <SelectItem key={s} value={s}>{t(s)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -194,14 +196,14 @@ const Shipments = () => {
                   <Checkbox
                     checked={allFilteredSelected}
                     onCheckedChange={toggleAll}
-                    aria-label="Select all"
+                    aria-label={t('Select all')}
                   />
                 </TableHead>
-                <TableHead>Shipment ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Service</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="hidden md:table-cell">Created</TableHead>
+                <TableHead>{t('Shipment ID')}</TableHead>
+                <TableHead>{t('Customer')}</TableHead>
+                <TableHead>{t('Service')}</TableHead>
+                <TableHead>{t('Status')}</TableHead>
+                <TableHead className="hidden md:table-cell">{t('Created')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -215,7 +217,7 @@ const Shipments = () => {
                     <Checkbox
                       checked={selected.has(s.id)}
                       onCheckedChange={() => toggleOne(s.id)}
-                      aria-label={`Select ${s.shipment_id}`}
+                      aria-label={t('Select {label}', { label: s.shipment_id })}
                     />
                   </TableCell>
                   <TableCell className="font-mono-id font-medium text-sm" onClick={() => navigate(`/shipments/${s.id}`)}>
@@ -228,10 +230,10 @@ const Shipments = () => {
                     <Badge variant={s.service_type === 'AIR' ? 'info' : 'secondary'}>{s.service_type}</Badge>
                   </TableCell>
                   <TableCell onClick={() => navigate(`/shipments/${s.id}`)}>
-                    <Badge variant={statusVariant(s.status)}>{s.status}</Badge>
+                    <Badge variant={statusVariant(s.status)}>{t(s.status)}</Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm hidden md:table-cell" onClick={() => navigate(`/shipments/${s.id}`)}>
-                    {format(new Date(s.created_at), 'MMM d, yyyy')}
+                    {format(new Date(s.created_at), 'MMM d, yyyy', { locale: dateLocale })}
                   </TableCell>
                 </TableRow>
               ))}
@@ -239,7 +241,7 @@ const Shipments = () => {
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
                     <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    {search || statusFilter !== 'all' ? 'No shipments match your filters' : 'No shipments yet'}
+                    {search || statusFilter !== 'all' ? t('No shipments match your filters') : t('No shipments yet')}
                   </TableCell>
                 </TableRow>
               )}
@@ -251,19 +253,21 @@ const Shipments = () => {
       <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-heading">Cancel {selected.size} shipment(s)?</AlertDialogTitle>
+            <AlertDialogTitle className="font-heading">
+              {t('Cancel {count} shipment(s)?', { count: selected.size })}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will mark the selected shipment(s) as "Cancelled". You can change the status back later if needed.
+              {t('This will mark the selected shipment(s) as "Cancelled". You can change the status back later if needed.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Go Back</AlertDialogCancel>
+            <AlertDialogCancel>{t('Go Back')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => cancelShipmentsMutation.mutate(Array.from(selected))}
               disabled={cancelShipmentsMutation.isPending}
             >
-              {cancelShipmentsMutation.isPending ? 'Cancelling...' : 'Yes, cancel shipments'}
+              {cancelShipmentsMutation.isPending ? t('Cancelling...') : t('Yes, cancel shipments')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

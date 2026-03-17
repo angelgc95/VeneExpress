@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { ArrowLeft, Plus } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Customer, ServiceType } from '@/types/shipping';
 
 interface AddressForm {
@@ -20,50 +21,66 @@ const emptyAddress = (country = 'US'): AddressForm => ({
   name: '', phone: '', line1: '', line2: '', city: '', state: '', postal_code: '', country
 });
 
-const AddressFormFields = ({ addr, setAddr, label }: { addr: AddressForm; setAddr: (a: AddressForm) => void; label: string }) => (
-  <div className="space-y-4">
-    <h3 className="font-heading font-semibold">{label}</h3>
+const getCustomerShippingAddress = (customer?: Customer | null): AddressForm => ({
+  name: customer?.shipping_name || [customer?.first_name, customer?.last_name].filter(Boolean).join(' '),
+  phone: customer?.shipping_phone || customer?.phone || '',
+  line1: customer?.shipping_line1 || '',
+  line2: customer?.shipping_line2 || '',
+  city: customer?.shipping_city || '',
+  state: customer?.shipping_state || '',
+  postal_code: customer?.shipping_postal_code || '',
+  country: customer?.shipping_country || 'US',
+});
+
+const AddressFormFields = ({ addr, setAddr, label }: { addr: AddressForm; setAddr: (a: AddressForm) => void; label: string }) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="space-y-4">
+      <h3 className="font-heading font-semibold">{t(label)}</h3>
     <div className="grid grid-cols-2 gap-4">
       <div className="space-y-2">
-        <Label>Contact Name *</Label>
+        <Label>{t('Contact Name *')}</Label>
         <Input value={addr.name} onChange={(e) => setAddr({ ...addr, name: e.target.value })} required />
       </div>
       <div className="space-y-2">
-        <Label>Phone</Label>
+        <Label>{t('Phone')}</Label>
         <Input value={addr.phone} onChange={(e) => setAddr({ ...addr, phone: e.target.value })} />
       </div>
     </div>
     <div className="space-y-2">
-      <Label>Address Line 1 *</Label>
+      <Label>{t('Address Line 1 *')}</Label>
       <Input value={addr.line1} onChange={(e) => setAddr({ ...addr, line1: e.target.value })} required />
     </div>
     <div className="space-y-2">
-      <Label>Address Line 2</Label>
+      <Label>{t('Address Line 2')}</Label>
       <Input value={addr.line2} onChange={(e) => setAddr({ ...addr, line2: e.target.value })} />
     </div>
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       <div className="space-y-2">
-        <Label>City *</Label>
+        <Label>{t('City')} *</Label>
         <Input value={addr.city} onChange={(e) => setAddr({ ...addr, city: e.target.value })} required />
       </div>
       <div className="space-y-2">
-        <Label>State</Label>
+        <Label>{t('State')}</Label>
         <Input value={addr.state} onChange={(e) => setAddr({ ...addr, state: e.target.value })} />
       </div>
       <div className="space-y-2">
-        <Label>Postal Code</Label>
+        <Label>{t('Postal Code')}</Label>
         <Input value={addr.postal_code} onChange={(e) => setAddr({ ...addr, postal_code: e.target.value })} />
       </div>
       <div className="space-y-2">
-        <Label>Country</Label>
+        <Label>{t('Country')}</Label>
         <Input value={addr.country} onChange={(e) => setAddr({ ...addr, country: e.target.value })} />
       </div>
     </div>
   </div>
-);
+  );
+};
 
 const CreateShipment = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [step, setStep] = useState(1);
   const [customerId, setCustomerId] = useState('');
   const [newCustomer, setNewCustomer] = useState({ first_name: '', last_name: '', phone: '', email: '' });
@@ -81,12 +98,21 @@ const CreateShipment = () => {
     },
   });
 
+  const selectedCustomer = !isNewCustomer
+    ? customers.find((customer) => customer.id === customerId) ?? null
+    : null;
+
+  useEffect(() => {
+    if (!selectedCustomer || isNewCustomer) return;
+    setSender(getCustomerShippingAddress(selectedCustomer));
+  }, [isNewCustomer, selectedCustomer]);
+
   const createMutation = useMutation({
     mutationFn: async () => {
       const selectedCustomerId = isNewCustomer ? null : customerId;
-      if (!isNewCustomer && !selectedCustomerId) throw new Error('Please select a customer');
-      if (!sender.name.trim() || !sender.line1.trim() || !sender.city.trim()) throw new Error('Sender address is incomplete');
-      if (!receiver.name.trim() || !receiver.line1.trim() || !receiver.city.trim()) throw new Error('Receiver address is incomplete');
+      if (!isNewCustomer && !selectedCustomerId) throw new Error(t('Please select a customer'));
+      if (!sender.name.trim() || !sender.line1.trim() || !sender.city.trim()) throw new Error(t('Sender address is incomplete'));
+      if (!receiver.name.trim() || !receiver.line1.trim() || !receiver.city.trim()) throw new Error(t('Receiver address is incomplete'));
 
       const { data, error } = await (supabase as any).rpc('create_shipment_with_addresses', {
         p_customer_id: selectedCustomerId,
@@ -113,12 +139,12 @@ const CreateShipment = () => {
         p_service_type: serviceType,
       });
       if (error) throw error;
-      if (!data) throw new Error('Shipment creation did not return an id');
+      if (!data) throw new Error(t('Shipment creation did not return an id'));
 
       return data as string;
     },
     onSuccess: (id) => {
-      toast.success('Shipment created!');
+      toast.success(t('Shipment created!'));
       navigate(`/shipments/${id}`);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -133,32 +159,32 @@ const CreateShipment = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold font-heading">New Shipment</h1>
-          <p className="text-muted-foreground text-sm">Step {step} of 3</p>
+          <h1 className="text-2xl font-bold font-heading">{t('New Shipment')}</h1>
+          <p className="text-muted-foreground text-sm">{t('Step {step} of 3', { step })}</p>
         </div>
       </div>
 
       {step === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle className="font-heading">Customer</CardTitle>
-            <CardDescription>Select an existing customer or create a new one</CardDescription>
+            <CardTitle className="font-heading">{t('Customer')}</CardTitle>
+            <CardDescription>{t('Select an existing customer or create a new one')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-2">
               <Button variant={!isNewCustomer ? 'default' : 'outline'} size="sm" onClick={() => setIsNewCustomer(false)}>
-                Existing Customer
+                {t('Existing Customer')}
               </Button>
               <Button variant={isNewCustomer ? 'default' : 'outline'} size="sm" onClick={() => setIsNewCustomer(true)}>
-                <Plus className="h-4 w-4 mr-1" /> New Customer
+                <Plus className="h-4 w-4 mr-1" /> {t('New Customer')}
               </Button>
             </div>
 
             {!isNewCustomer ? (
               <div className="space-y-2">
-                <Label>Select Customer *</Label>
+                <Label>{t('Select Customer *')}</Label>
                 <Select value={customerId} onValueChange={setCustomerId}>
-                  <SelectTrigger><SelectValue placeholder="Choose a customer..." /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t('Choose a customer...')} /></SelectTrigger>
                   <SelectContent>
                     {customers.map((c) => (
                       <SelectItem key={c.id} value={c.id}>{c.first_name} {c.last_name} {c.phone ? `(${c.phone})` : ''}</SelectItem>
@@ -169,19 +195,19 @@ const CreateShipment = () => {
             ) : (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>First Name *</Label>
+                  <Label>{t('First Name *')}</Label>
                   <Input value={newCustomer.first_name} onChange={(e) => setNewCustomer(nc => ({ ...nc, first_name: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Last Name *</Label>
+                  <Label>{t('Last Name *')}</Label>
                   <Input value={newCustomer.last_name} onChange={(e) => setNewCustomer(nc => ({ ...nc, last_name: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Phone</Label>
+                  <Label>{t('Phone')}</Label>
                   <Input value={newCustomer.phone} onChange={(e) => setNewCustomer(nc => ({ ...nc, phone: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Email</Label>
+                  <Label>{t('Email')}</Label>
                   <Input type="email" value={newCustomer.email} onChange={(e) => setNewCustomer(nc => ({ ...nc, email: e.target.value }))} />
                 </div>
               </div>
@@ -189,10 +215,10 @@ const CreateShipment = () => {
 
             <div className="flex justify-end">
               <Button onClick={() => {
-                if (!isNewCustomer && !customerId) { toast.error('Select a customer'); return; }
-                if (isNewCustomer && (!newCustomer.first_name.trim() || !newCustomer.last_name.trim())) { toast.error('Enter customer name'); return; }
+                if (!isNewCustomer && !customerId) { toast.error(t('Select a customer')); return; }
+                if (isNewCustomer && (!newCustomer.first_name.trim() || !newCustomer.last_name.trim())) { toast.error(t('Enter customer name')); return; }
                 setStep(2);
-              }}>Continue</Button>
+              }}>{t('Continue')}</Button>
             </div>
           </CardContent>
         </Card>
@@ -201,20 +227,25 @@ const CreateShipment = () => {
       {step === 2 && (
         <Card>
           <CardHeader>
-            <CardTitle className="font-heading">Addresses</CardTitle>
-            <CardDescription>Enter sender and receiver addresses</CardDescription>
+            <CardTitle className="font-heading">{t('Addresses')}</CardTitle>
+            <CardDescription>{t('Enter sender and receiver addresses')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {!isNewCustomer && selectedCustomer && (
+              <p className="text-sm text-muted-foreground">
+                {t("Sender address is loaded from the customer's saved shipping address when available.")}
+              </p>
+            )}
             <AddressFormFields addr={sender} setAddr={setSender} label="Sender (Origin)" />
             <Separator />
             <AddressFormFields addr={receiver} setAddr={setReceiver} label="Receiver (Destination)" />
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
+              <Button variant="outline" onClick={() => setStep(1)}>{t('Back')}</Button>
               <Button onClick={() => {
-                if (!sender.name.trim() || !sender.line1.trim() || !sender.city.trim()) { toast.error('Complete sender address'); return; }
-                if (!receiver.name.trim() || !receiver.line1.trim() || !receiver.city.trim()) { toast.error('Complete receiver address'); return; }
+                if (!sender.name.trim() || !sender.line1.trim() || !sender.city.trim()) { toast.error(t('Complete sender address')); return; }
+                if (!receiver.name.trim() || !receiver.line1.trim() || !receiver.city.trim()) { toast.error(t('Complete receiver address')); return; }
                 setStep(3);
-              }}>Continue</Button>
+              }}>{t('Continue')}</Button>
             </div>
           </CardContent>
         </Card>
@@ -223,17 +254,17 @@ const CreateShipment = () => {
       {step === 3 && (
         <Card>
           <CardHeader>
-            <CardTitle className="font-heading">Review & Create</CardTitle>
-            <CardDescription>Confirm shipment details</CardDescription>
+            <CardTitle className="font-heading">{t('Review & Create')}</CardTitle>
+            <CardDescription>{t('Confirm shipment details')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Service Type</Label>
+              <Label>{t('Service Type')}</Label>
               <Select value={serviceType} onValueChange={(v) => setServiceType(v as ServiceType)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="SEA">🚢 Sea Freight (Default)</SelectItem>
-                  <SelectItem value="AIR">✈️ Air Freight</SelectItem>
+                  <SelectItem value="SEA">🚢 {t('Sea Freight (Default)')}</SelectItem>
+                  <SelectItem value="AIR">✈️ {t('Air Freight')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -242,7 +273,7 @@ const CreateShipment = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div className="p-3 rounded-lg bg-muted">
-                <p className="font-medium mb-1">Customer</p>
+                <p className="font-medium mb-1">{t('Customer')}</p>
                 {isNewCustomer ? (
                   <p>{newCustomer.first_name} {newCustomer.last_name}</p>
                 ) : (
@@ -250,19 +281,19 @@ const CreateShipment = () => {
                 )}
               </div>
               <div className="p-3 rounded-lg bg-muted">
-                <p className="font-medium mb-1">Route</p>
+                <p className="font-medium mb-1">{t('Route')}</p>
                 <p>{sender.city}, {sender.country} → {receiver.city}, {receiver.country}</p>
               </div>
             </div>
 
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
+              <Button variant="outline" onClick={() => setStep(2)}>{t('Back')}</Button>
               <Button
                 className="bg-accent text-accent-foreground hover:bg-accent/90"
                 disabled={createMutation.isPending}
                 onClick={() => createMutation.mutate()}
               >
-                {createMutation.isPending ? 'Creating...' : 'Create Shipment'}
+                {createMutation.isPending ? t('Creating...') : t('Create Shipment')}
               </Button>
             </div>
           </CardContent>

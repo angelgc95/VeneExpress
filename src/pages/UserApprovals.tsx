@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner';
 import { Shield, CheckCircle2, Clock } from 'lucide-react';
 import { format } from 'date-fns';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { AppRole } from '@/types/shipping';
 
 interface ProfileRow {
@@ -27,6 +28,7 @@ interface RoleRow {
 const UserApprovals = () => {
   const queryClient = useQueryClient();
   const { isAdmin, user: currentUser } = useAuth();
+  const { t, dateLocale } = useTranslation();
 
   const { data: profiles = [], isLoading: loadingProfiles } = useQuery({
     queryKey: ['admin-profiles'],
@@ -71,7 +73,7 @@ const UserApprovals = () => {
     },
     onSuccess: (_, { approve }) => {
       queryClient.invalidateQueries({ queryKey: ['admin-profiles'] });
-      toast.success(approve ? 'User approved' : 'User access revoked');
+      toast.success(t(approve ? 'User approved' : 'User access revoked'));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -94,7 +96,7 @@ const UserApprovals = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-roles'] });
-      toast.success('Role updated');
+      toast.success(t('Role updated'));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -105,7 +107,7 @@ const UserApprovals = () => {
       <div className="flex items-center justify-center py-20">
         <div className="text-center space-y-2">
           <Shield className="h-12 w-12 mx-auto text-muted-foreground" />
-          <p className="text-muted-foreground">Admin access required</p>
+          <p className="text-muted-foreground">{t('Admin access required')}</p>
         </div>
       </div>
     );
@@ -115,19 +117,19 @@ const UserApprovals = () => {
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold font-heading">User Approvals</h1>
+          <h1 className="text-2xl font-bold font-heading">{t('User Approvals')}</h1>
           <p className="text-muted-foreground text-sm">
             {pendingCount > 0
-              ? `${pendingCount} pending approval${pendingCount > 1 ? 's' : ''}`
-              : 'All users approved'}
+              ? t(pendingCount > 1 ? '{count} pending approvals' : '{count} pending approval', { count: pendingCount })
+              : t('All users approved')}
           </p>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="font-heading">Users</CardTitle>
-          <CardDescription>Approve new accounts and manage roles</CardDescription>
+          <CardTitle className="font-heading">{t('Users')}</CardTitle>
+          <CardDescription>{t('Approve new accounts and manage roles')}</CardDescription>
         </CardHeader>
         <CardContent>
           {loadingProfiles ? (
@@ -135,16 +137,16 @@ const UserApprovals = () => {
               <div className="animate-spin h-6 w-6 border-4 border-accent border-t-transparent rounded-full" />
             </div>
           ) : users.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No users found</p>
+            <p className="text-center text-muted-foreground py-8">{t('No users found')}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead className="w-48">Actions</TableHead>
+                  <TableHead>{t('Name')}</TableHead>
+                  <TableHead>{t('Role')}</TableHead>
+                  <TableHead>{t('Status')}</TableHead>
+                  <TableHead>{t('Joined')}</TableHead>
+                  <TableHead className="w-48">{t('Actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -153,9 +155,9 @@ const UserApprovals = () => {
                   return (
                     <TableRow key={u.user_id}>
                       <TableCell className="font-medium">
-                        {u.full_name || 'Unknown'}
+                        {u.full_name || t('Unknown')}
                         {isSelf && (
-                          <span className="text-xs text-muted-foreground ml-2">(you)</span>
+                          <span className="text-xs text-muted-foreground ml-2">{t('(you)')}</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -170,9 +172,9 @@ const UserApprovals = () => {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="staff">Staff</SelectItem>
-                            <SelectItem value="readonly">Read-only</SelectItem>
+                            <SelectItem value="admin">{t('Admin')}</SelectItem>
+                            <SelectItem value="staff">{t('Staff')}</SelectItem>
+                            <SelectItem value="readonly">{t('Read-only')}</SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>
@@ -180,17 +182,17 @@ const UserApprovals = () => {
                         {u.approved ? (
                           <Badge variant="success" className="gap-1">
                             <CheckCircle2 className="h-3 w-3" />
-                            Approved
+                            {t('Approved')}
                           </Badge>
                         ) : (
                           <Badge variant="warning" className="gap-1">
                             <Clock className="h-3 w-3" />
-                            Pending
+                            {t('Pending')}
                           </Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(u.created_at), 'MMM d, yyyy')}
+                        {format(new Date(u.created_at), 'MMM d, yyyy', { locale: dateLocale })}
                       </TableCell>
                       <TableCell>
                         {!isSelf && (
@@ -205,7 +207,7 @@ const UserApprovals = () => {
                             }
                             disabled={approveMutation.isPending}
                           >
-                            {u.approved ? 'Revoke' : 'Approve'}
+                            {u.approved ? t('Revoke') : t('Approve')}
                           </Button>
                         )}
                       </TableCell>

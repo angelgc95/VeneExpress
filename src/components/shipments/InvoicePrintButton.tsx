@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface InvoicePrintButtonProps {
   shipmentId: string;
@@ -15,6 +16,7 @@ const InvoicePrintButton = ({
   variant = 'outline',
   size = 'sm',
 }: InvoicePrintButtonProps) => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
 
   const handlePrint = async () => {
@@ -25,11 +27,11 @@ const InvoicePrintButton = ({
       });
 
       if (error) throw error;
-      if (!data?.html) throw new Error('No invoice HTML returned');
+      if (!data?.html) throw new Error(t('No invoice HTML returned'));
 
       const printWindow = window.open('', '_blank', 'width=900,height=700');
       if (!printWindow) {
-        toast.error('Pop-up blocked. Please allow pop-ups for this site.');
+        toast.error(t('Pop-up blocked. Please allow pop-ups for this site.'));
         return;
       }
 
@@ -42,9 +44,9 @@ const InvoicePrintButton = ({
         }, 300);
       };
 
-      toast.success('Invoice ready to print');
+      toast.success(t('Invoice ready to print'));
     } catch (e: any) {
-      toast.error(e.message || 'Failed to generate invoice');
+      toast.error(e.message || t('Failed to generate invoice'));
     } finally {
       setLoading(false);
     }
@@ -53,7 +55,7 @@ const InvoicePrintButton = ({
   return (
     <Button variant={variant} size={size} onClick={handlePrint} disabled={loading}>
       <Printer className="h-4 w-4 mr-1.5" />
-      {loading ? 'Generating...' : 'Print Invoice'}
+      {loading ? t('Generating...') : t('Print Invoice')}
     </Button>
   );
 };

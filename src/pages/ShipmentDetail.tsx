@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Package, FileText, Clock, MapPin, Printer } from 'lucide-react';
+import { ArrowLeft, Package, FileText, Clock, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import BoxTable from '@/components/shipments/BoxTable';
 import StatusTimeline from '@/components/shipments/StatusTimeline';
 import InvoiceSection from '@/components/shipments/InvoiceSection';
 import LabelPrintButton from '@/components/shipments/LabelPrintButton';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Shipment, Address, Box, ShipmentStatus } from '@/types/shipping';
 
 const statusVariant = (status: ShipmentStatus) => {
@@ -25,6 +26,7 @@ const ShipmentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t, dateLocale } = useTranslation();
 
   const { data: shipment, isLoading } = useQuery({
     queryKey: ['shipment', id],
@@ -98,7 +100,7 @@ const ShipmentDetail = () => {
 
   const AddressCard = ({ address, label }: { address?: Address; label: string }) => (
     <div className="p-3 bg-muted rounded-lg space-y-1">
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t(label)}</p>
       {address ? (
         <>
           <p className="font-medium text-sm">{address.name}</p>
@@ -109,7 +111,7 @@ const ShipmentDetail = () => {
           <p className="text-sm font-medium">{address.country}</p>
         </>
       ) : (
-        <p className="text-sm text-muted-foreground">No address set</p>
+        <p className="text-sm text-muted-foreground">{t('No address set')}</p>
       )}
     </div>
   );
@@ -123,20 +125,22 @@ const ShipmentDetail = () => {
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold font-heading font-mono-id">{shipment.shipment_id}</h1>
-            <Badge variant={statusVariant(shipment.status as ShipmentStatus)}>{shipment.status}</Badge>
+            <Badge variant={statusVariant(shipment.status as ShipmentStatus)}>{t(shipment.status)}</Badge>
             <Badge variant={shipment.service_type === 'AIR' ? 'info' : 'secondary'}>{shipment.service_type}</Badge>
           </div>
           <p className="text-sm text-muted-foreground">
             {shipment.customers?.first_name} {shipment.customers?.last_name}
             {shipment.customers?.phone && ` • ${shipment.customers.phone}`}
-            {' • '}Created {format(new Date(shipment.created_at), 'MMM d, yyyy')}
+            {' • '}{t('Created {date}', {
+              date: format(new Date(shipment.created_at), 'MMM d, yyyy', { locale: dateLocale }),
+            })}
           </p>
         </div>
         {boxes.length > 0 && (
           <LabelPrintButton
             shipmentId={shipment.id}
             boxes={boxes}
-            label={`Label Actions (${boxes.length})`}
+            label={t('Label Actions ({count})', { count: boxes.length })}
           />
         )}
       </div>
@@ -144,16 +148,16 @@ const ShipmentDetail = () => {
       <Tabs defaultValue="boxes">
         <TabsList>
           <TabsTrigger value="overview" className="gap-1.5">
-            <MapPin className="h-3.5 w-3.5" /> Overview
+            <MapPin className="h-3.5 w-3.5" /> {t('Overview')}
           </TabsTrigger>
           <TabsTrigger value="boxes" className="gap-1.5">
-            <Package className="h-3.5 w-3.5" /> Boxes ({boxes.length})
+            <Package className="h-3.5 w-3.5" /> {t('Boxes ({count})', { count: boxes.length })}
           </TabsTrigger>
           <TabsTrigger value="invoice" className="gap-1.5">
-            <FileText className="h-3.5 w-3.5" /> Invoice
+            <FileText className="h-3.5 w-3.5" /> {t('Invoice')}
           </TabsTrigger>
           <TabsTrigger value="timeline" className="gap-1.5">
-            <Clock className="h-3.5 w-3.5" /> Timeline
+            <Clock className="h-3.5 w-3.5" /> {t('Timeline')}
           </TabsTrigger>
         </TabsList>
 

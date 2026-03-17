@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Package, Warehouse, Ship, CheckCircle, Search, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Shipment, ShipmentStatus } from '@/types/shipping';
 
 const statusVariant = (status: ShipmentStatus) => {
@@ -28,6 +29,7 @@ const statusVariant = (status: ShipmentStatus) => {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { t, dateLocale } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: shipments = [] } = useQuery({
@@ -64,11 +66,11 @@ const Dashboard = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold font-heading">Dashboard</h1>
-          <p className="text-muted-foreground text-sm">Overview of your shipping operations</p>
+          <h1 className="text-2xl font-bold font-heading">{t('Dashboard')}</h1>
+          <p className="text-muted-foreground text-sm">{t('Overview of your shipping operations')}</p>
         </div>
         <Button onClick={() => navigate('/shipments/new')} className="bg-accent text-accent-foreground hover:bg-accent/90">
-          <Plus className="h-4 w-4 mr-2" /> New Shipment
+          <Plus className="h-4 w-4 mr-2" /> {t('New Shipment')}
         </Button>
       </div>
 
@@ -81,7 +83,7 @@ const Dashboard = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold font-heading">{kpi.count}</p>
-                <p className="text-xs text-muted-foreground">{kpi.label}</p>
+                <p className="text-xs text-muted-foreground">{t(kpi.label)}</p>
               </div>
             </CardContent>
           </Card>
@@ -90,38 +92,38 @@ const Dashboard = () => {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-heading">Quick Search</CardTitle>
+          <CardTitle className="text-base font-heading">{t('Quick Search')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by Shipment ID, Box ID, or customer phone..."
+                placeholder={t('Search by Shipment ID, Box ID, or customer phone...')}
                 className="pl-10"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               />
             </div>
-            <Button variant="outline" onClick={handleSearch}>Search</Button>
+            <Button variant="outline" onClick={handleSearch}>{t('Search')}</Button>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-heading">Recent Shipments</CardTitle>
+          <CardTitle className="text-base font-heading">{t('Recent Shipments')}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Shipment ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Service</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="hidden md:table-cell">Date</TableHead>
+                <TableHead>{t('Shipment ID')}</TableHead>
+                <TableHead>{t('Customer')}</TableHead>
+                <TableHead>{t('Service')}</TableHead>
+                <TableHead>{t('Status')}</TableHead>
+                <TableHead className="hidden md:table-cell">{t('Date')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -139,17 +141,17 @@ const Dashboard = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant(s.status)}>{s.status}</Badge>
+                    <Badge variant={statusVariant(s.status)}>{t(s.status)}</Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm hidden md:table-cell">
-                    {format(new Date(s.created_at), 'MMM d, yyyy')}
+                    {format(new Date(s.created_at), 'MMM d, yyyy', { locale: dateLocale })}
                   </TableCell>
                 </TableRow>
               ))}
               {shipments.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-12">
-                    No shipments yet. Create your first one!
+                    {t('No shipments yet. Create your first one!')}
                   </TableCell>
                 </TableRow>
               )}

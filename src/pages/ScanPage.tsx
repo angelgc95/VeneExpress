@@ -14,6 +14,7 @@ import {
   getShipmentScanCodeFromId,
   normalizeLookupValue,
 } from '@/lib/scan-codes';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { CameraDevice, Html5Qrcode as Html5QrcodeInstance } from 'html5-qrcode';
 import type { Shipment, Box, ShipmentStatus } from '@/types/shipping';
 
@@ -31,6 +32,7 @@ type ScanResult = Shipment & { customers: { first_name: string; last_name: strin
 
 const ScanPage = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const scanningRef = useRef(false);
   const html5QrCodeRef = useRef<Html5QrcodeInstance | null>(null);
@@ -99,13 +101,13 @@ const ScanPage = () => {
         }
       }
 
-      toast.error('No shipment or box found');
+      toast.error(t('No shipment or box found'));
     } catch (e) {
-      toast.error('Search failed');
+      toast.error(t('Search failed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const resultScanCode = result?.box
     ? getBoxScanCodeFromId(result.box.box_id)
@@ -149,12 +151,12 @@ const ScanPage = () => {
     const lookupCandidates = buildLookupCandidates(normalizedValue);
     const displayValue = lookupCandidates.digitsOnly || normalizedValue;
 
-    toast.success(`Scanned: ${displayValue}`);
-    setScanStatus('Barcode captured. Looking up record...');
+    toast.success(t('Scanned: {value}', { value: displayValue }));
+    setScanStatus(t('Barcode captured. Looking up record...'));
     setQuery(displayValue);
     await stopScanner();
     await handleSearch(normalizedValue);
-  }, [handleSearch, stopScanner]);
+  }, [handleSearch, stopScanner, t]);
 
   const startScanner = async () => {
     try {
@@ -162,7 +164,7 @@ const ScanPage = () => {
 
       scanningRef.current = true;
       setScanning(true);
-      setScanStatus('Starting camera scanner...');
+      setScanStatus(t('Starting camera scanner...'));
 
       const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode');
       await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
@@ -246,7 +248,7 @@ const ScanPage = () => {
 
       for (const attempt of startAttempts) {
         try {
-          setScanStatus(`Starting ${attempt.label}...`);
+          setScanStatus(t('Starting {label}...', { label: t(attempt.label) }));
           await scanner.start(
             attempt.cameraConfig,
             {
@@ -279,15 +281,19 @@ const ScanPage = () => {
         throw lastError;
       }
 
-      setScanStatus(`${SCANNER_STATUS_READY} Defaulting to ${startedWithLabel} when available.`);
+      setScanStatus(
+        `${t(SCANNER_STATUS_READY)} ${t('Defaulting to {label} when available.', {
+          label: t(startedWithLabel),
+        })}`,
+      );
     } catch (err: unknown) {
       await stopScanner();
       const errorName = err instanceof Error ? err.name : '';
       const errorMessage = err instanceof Error ? err.message : '';
       if (errorName === 'NotAllowedError' || errorMessage.includes('Permission')) {
-        toast.error('Camera permission denied. Please allow camera access.');
+        toast.error(t('Camera permission denied. Please allow camera access.'));
       } else {
-        toast.error('Camera not available. Use manual input instead.');
+        toast.error(t('Camera not available. Use manual input instead.'));
       }
     }
   };
@@ -295,14 +301,14 @@ const ScanPage = () => {
   return (
     <div className="max-w-xl mx-auto space-y-6 animate-fade-in">
       <div className="text-center">
-        <h1 className="text-2xl font-bold font-heading">Scan / Search</h1>
-        <p className="text-muted-foreground text-sm">Scan a barcode or type a shipment ID, box ID, or manual scan code</p>
+        <h1 className="text-2xl font-bold font-heading">{t('Scan / Search')}</h1>
+        <p className="text-muted-foreground text-sm">{t('Scan a barcode or type a shipment ID, box ID, or manual scan code')}</p>
       </div>
 
       <Card>
         <CardContent className="p-6 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="manual-entry">Manual entry</Label>
+            <Label htmlFor="manual-entry">{t('Manual entry')}</Label>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -310,7 +316,7 @@ const ScanPage = () => {
                   id="manual-entry"
                   ref={inputRef}
                   className="pl-11 h-14 text-lg font-mono-id"
-                  placeholder="Enter scan code, shipment ID, or box ID"
+                  placeholder={t('Enter scan code, shipment ID, or box ID')}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch(query)}
@@ -318,11 +324,11 @@ const ScanPage = () => {
                 />
               </div>
               <Button className="h-14 px-6 bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => handleSearch(query)} disabled={loading}>
-                {loading ? '...' : 'Go'}
+                {loading ? '...' : t('Go')}
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Use the printed numeric scan code if the camera or barcode scanner misses the label.
+              {t('Use the printed numeric scan code if the camera or barcode scanner misses the label.')}
             </p>
           </div>
 
@@ -333,7 +339,7 @@ const ScanPage = () => {
               onClick={startScanner}
             >
               <Camera className="h-4 w-4" />
-              Scan with Camera
+              {t('Scan with Camera')}
             </Button>
           ) : (
             <div className="space-y-2">
@@ -352,7 +358,7 @@ const ScanPage = () => {
                 </Button>
               </div>
               <p className="text-xs text-center text-muted-foreground">
-                {scanStatus || 'Point camera at barcode'}
+                {scanStatus || t('Point camera at barcode')}
               </p>
             </div>
           )}
@@ -364,7 +370,7 @@ const ScanPage = () => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="font-heading font-mono-id">{result.shipment.shipment_id}</CardTitle>
-              <Badge variant={statusVariant(result.shipment.status as ShipmentStatus)}>{result.shipment.status}</Badge>
+              <Badge variant={statusVariant(result.shipment.status as ShipmentStatus)}>{t(result.shipment.status)}</Badge>
             </div>
             <CardDescription>
               {result.shipment.customers?.first_name} {result.shipment.customers?.last_name}
@@ -374,13 +380,13 @@ const ScanPage = () => {
           <CardContent className="space-y-4">
             {resultScanCode && (
               <div className="p-3 border rounded-lg">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Manual scan code</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('Manual scan code')}</p>
                 <p className="text-sm font-mono-id">{resultScanCode}</p>
               </div>
             )}
             {result.box && (
               <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm font-medium">Box: <span className="font-mono-id">{result.box.box_id}</span></p>
+                <p className="text-sm font-medium">{t('Box:')} <span className="font-mono-id">{result.box.box_id}</span></p>
                 <p className="text-sm text-muted-foreground">
                   {parseFloat(String(result.box.length_in))} × {parseFloat(String(result.box.width_in))} × {parseFloat(String(result.box.height_in))} in
                   {' • '}{parseFloat(String(result.box.volume_ft3)).toFixed(2)} ft³
@@ -392,7 +398,7 @@ const ScanPage = () => {
               className="w-full"
               onClick={() => navigate(`/shipments/${result.shipment.id}`)}
             >
-              <Package className="h-4 w-4 mr-2" /> View Shipment <ArrowRight className="h-4 w-4 ml-2" />
+              <Package className="h-4 w-4 mr-2" /> {t('View Shipment')} <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </CardContent>
         </Card>

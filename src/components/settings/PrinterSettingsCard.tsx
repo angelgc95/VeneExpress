@@ -28,6 +28,7 @@ import {
   getPrintBridgeStatus,
   sendPrinterTestLabel,
 } from "@/lib/printing/service";
+import { useTranslation } from "@/hooks/useTranslation";
 import type {
   PrintBridgeStatus,
   PrinterConfig,
@@ -63,6 +64,7 @@ const workflowBadgeVariant = (state: PrinterWorkflowState) => {
 };
 
 const PrinterSettingsCard = () => {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState(EMPTY_PRINTER_SETTINGS);
   const [bridgeStatus, setBridgeStatus] = useState<PrintBridgeStatus>({
     available: false,
@@ -97,12 +99,12 @@ const PrinterSettingsCard = () => {
 
   const handleSavePrinter = () => {
     if (!form.name.trim()) {
-      toast.error("Printer name is required");
+      toast.error(t("Printer name is required"));
       return;
     }
 
     if (!form.model.trim()) {
-      toast.error("Printer model is required");
+      toast.error(t("Printer model is required"));
       return;
     }
 
@@ -115,7 +117,7 @@ const PrinterSettingsCard = () => {
 
     persistSettings(nextSettings);
     setForm(EMPTY_FORM);
-    toast.success(form.id ? "Printer profile updated" : "Printer profile saved");
+    toast.success(t(form.id ? "Printer profile updated" : "Printer profile saved"));
   };
 
   const handleEditPrinter = (printer: PrinterConfig) => {
@@ -132,7 +134,7 @@ const PrinterSettingsCard = () => {
     if (form.id === printerId) {
       setForm(EMPTY_FORM);
     }
-    toast.success("Printer removed");
+    toast.success(t("Printer removed"));
   };
 
   const handleDefaultPrinterChange = (printerId: string) => {
@@ -145,13 +147,13 @@ const PrinterSettingsCard = () => {
     try {
       const result = await sendPrinterTestLabel(printerId);
       if (result.status === "bridge") {
-        toast.success(result.message);
+        toast.success(t(result.message, result.messageVariables));
       } else {
-        toast(result.message);
+        toast(t(result.message, result.messageVariables));
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to send test print";
-      toast.error(message);
+      toast.error(t(message));
     } finally {
       setTestingPrinterId(null);
     }
@@ -162,14 +164,13 @@ const PrinterSettingsCard = () => {
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <CardTitle className="font-heading">Printing</CardTitle>
+            <CardTitle className="font-heading">{t("Printing")}</CardTitle>
             <CardDescription>
-              Save printer profiles for daily use, keep browser or PDF fallback available, and let a future
-              local bridge take over one-click TSPL printing when it is installed.
+              {t("Save printer profiles for daily use, keep browser or PDF fallback available, and let a future local bridge take over one-click TSPL printing when it is installed.")}
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={workflowBadgeVariant(defaultWorkflow.state)}>{defaultWorkflow.label}</Badge>
+            <Badge variant={workflowBadgeVariant(defaultWorkflow.state)}>{t(defaultWorkflow.label)}</Badge>
             {defaultPrinter && <Badge variant="outline">{defaultPrinter.name}</Badge>}
           </div>
         </div>
@@ -178,38 +179,40 @@ const PrinterSettingsCard = () => {
         <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-lg border p-4 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={workflowBadgeVariant(defaultWorkflow.state)}>{defaultWorkflow.label}</Badge>
-              <span className="text-sm font-medium">Default barcode printer</span>
+              <Badge variant={workflowBadgeVariant(defaultWorkflow.state)}>{t(defaultWorkflow.label)}</Badge>
+              <span className="text-sm font-medium">{t("Default barcode printer")}</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              {defaultWorkflow.detail}
+              {t(defaultWorkflow.detail, defaultWorkflow.detailVariables)}
             </p>
             <p className="text-xs text-muted-foreground">
-              Configured means the printer profile is saved. Ready means the profile is saved and the local bridge is available for direct TSPL output.
+              {t("Configured means the printer profile is saved. Ready means the profile is saved and the local bridge is available for direct TSPL output.")}
             </p>
           </div>
           <div className="rounded-lg border p-4 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={bridgeStatus.connected ? "success" : "outline"}>
-                {bridgeStatus.connected ? "Ready" : "Bridge unavailable"}
+                {t(bridgeStatus.connected ? "Ready" : "Bridge unavailable")}
               </Badge>
-              <span className="text-sm font-medium">Bridge helper</span>
+              <span className="text-sm font-medium">{t("Bridge helper")}</span>
             </div>
             <p className="text-sm text-muted-foreground">
               {bridgeStatus.connected
-                ? `${bridgeStatus.name}. Direct barcode print jobs can be handed off immediately.`
-                : "No local helper is connected yet. The app will keep using browser or PDF fallback where needed."}
+                ? t("{bridgeName}. Direct barcode print jobs can be handed off immediately.", {
+                    bridgeName: t(bridgeStatus.name),
+                  })
+                : t("No local helper is connected yet. The app will keep using browser or PDF fallback where needed.")}
             </p>
             <Button variant="outline" size="sm" onClick={() => void refreshBridgeStatus()} disabled={refreshingBridge}>
               {refreshingBridge ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-              Refresh bridge status
+              {t("Refresh bridge status")}
             </Button>
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label>Printer name</Label>
+            <Label>{t("Printer name")}</Label>
             <Input
               placeholder="Warehouse Zebra"
               value={form.name}
@@ -217,7 +220,7 @@ const PrinterSettingsCard = () => {
             />
           </div>
           <div className="space-y-2">
-            <Label>Printer model</Label>
+            <Label>{t("Printer model")}</Label>
             <Input
               placeholder="TSC TE244"
               value={form.model}
@@ -225,7 +228,7 @@ const PrinterSettingsCard = () => {
             />
           </div>
           <div className="space-y-2 md:col-span-2">
-            <Label>Connection type</Label>
+            <Label>{t("Connection type")}</Label>
             <Select
               value={form.connectionType}
               onValueChange={(value: PrinterConnectionType) =>
@@ -233,12 +236,12 @@ const PrinterSettingsCard = () => {
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select printer connection" />
+                <SelectValue placeholder={t("Select printer connection")} />
               </SelectTrigger>
               <SelectContent>
                 {CONNECTION_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                    {t(option.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -249,11 +252,11 @@ const PrinterSettingsCard = () => {
         <div className="flex flex-wrap gap-3">
           <Button onClick={handleSavePrinter}>
             <Printer className="mr-2 h-4 w-4" />
-            {form.id ? "Update printer profile" : "Save printer profile"}
+            {t(form.id ? "Update printer profile" : "Save printer profile")}
           </Button>
           {form.id && (
             <Button variant="outline" onClick={() => setForm(EMPTY_FORM)}>
-              Cancel edit
+              {t("Cancel edit")}
             </Button>
           )}
           <Button
@@ -266,7 +269,7 @@ const PrinterSettingsCard = () => {
             ) : (
               <Wrench className="mr-2 h-4 w-4" />
             )}
-            Send TSPL test print
+            {t("Send TSPL test print")}
           </Button>
         </div>
 
@@ -274,13 +277,13 @@ const PrinterSettingsCard = () => {
 
         <div className="space-y-3">
           <div className="space-y-2">
-            <Label>Default barcode printer</Label>
+            <Label>{t("Default barcode printer")}</Label>
             <Select value={settings.defaultPrinterId ?? "none"} onValueChange={handleDefaultPrinterChange}>
               <SelectTrigger>
-                <SelectValue placeholder="Choose a default printer" />
+                <SelectValue placeholder={t("Choose a default printer")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">No default printer</SelectItem>
+                <SelectItem value="none">{t("No default printer")}</SelectItem>
                 {settings.printers.map((printer) => (
                   <SelectItem key={printer.id} value={printer.id}>
                     {printer.name} ({printer.model})
@@ -292,7 +295,7 @@ const PrinterSettingsCard = () => {
 
           {settings.printers.length === 0 ? (
             <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-              No printers saved yet. Add one to prepare direct TSPL printing later.
+              {t("No printers saved yet. Add one to prepare direct TSPL printing later.")}
             </div>
           ) : (
             <div className="space-y-3">
@@ -310,20 +313,22 @@ const PrinterSettingsCard = () => {
                           {isDefault && (
                             <Badge variant="secondary">
                               <CheckCircle2 className="mr-1 h-3 w-3" />
-                              Default
+                              {t("Default")}
                             </Badge>
                           )}
-                          <Badge variant={workflowBadgeVariant(workflow.state)}>{workflow.label}</Badge>
+                          <Badge variant={workflowBadgeVariant(workflow.state)}>{t(workflow.label)}</Badge>
                           <Badge variant={printer.connectionType === "manual" ? "outline" : "info"}>
-                            {CONNECTION_OPTIONS.find((option) => option.value === printer.connectionType)?.label}
+                            {t(CONNECTION_OPTIONS.find((option) => option.value === printer.connectionType)?.label ?? "")}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">{printer.model}</p>
-                        <p className="text-sm text-muted-foreground">{workflow.detail}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {t(workflow.detail, workflow.detailVariables)}
+                        </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleEditPrinter(printer)}>
-                          Edit
+                          {t("Edit")}
                         </Button>
                         <Button
                           variant="outline"
@@ -332,7 +337,7 @@ const PrinterSettingsCard = () => {
                           disabled={isTesting}
                         >
                           {isTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wrench className="mr-2 h-4 w-4" />}
-                          Test print
+                          {t("Test print")}
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleDeletePrinter(printer.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />

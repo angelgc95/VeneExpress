@@ -12,6 +12,7 @@ import { Plus, Trash2, DollarSign } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import LabelPrintButton from '@/components/shipments/LabelPrintButton';
 import { getBoxScanCodeFromId } from '@/lib/scan-codes';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Box, PricingRule, ServiceType, StandardItem } from '@/types/shipping';
 
 interface BoxTableProps {
@@ -24,6 +25,7 @@ interface BoxTableProps {
 const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTableProps) => {
   const queryClient = useQueryClient();
   const { isStaff } = useAuth();
+  const { t } = useTranslation();
   const [newBox, setNewBox] = useState({ length: '', width: '', height: '' });
   const [customItemName, setCustomItemName] = useState('');
   const [customItemPrice, setCustomItemPrice] = useState('');
@@ -88,7 +90,7 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
       const w = parseFloat(newBox.width);
       const h = parseFloat(newBox.height);
       if (isNaN(l) || isNaN(w) || isNaN(h) || l <= 0 || w <= 0 || h <= 0) {
-        throw new Error('Enter valid dimensions (positive numbers)');
+        throw new Error(t('Enter valid dimensions (positive numbers)'));
       }
       const rate = pricingRule ? parseFloat(String(pricingRule.rate_per_ft3)) : 25;
       const volume = (l * w * h) / 1728;
@@ -109,7 +111,7 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['boxes', shipmentId] });
       setNewBox({ length: '', width: '', height: '' });
-      toast.success('Box added');
+      toast.success(t('Box added'));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -131,16 +133,16 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['boxes', shipmentId] });
-      toast.success('Item added');
+      toast.success(t('Item added'));
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const addCustomItemMutation = useMutation({
     mutationFn: async () => {
-      if (!customItemName.trim()) throw new Error('Enter item name');
+      if (!customItemName.trim()) throw new Error(t('Enter item name'));
       const price = parseFloat(customItemPrice);
-      if (isNaN(price) || price < 0) throw new Error('Enter a valid price');
+      if (isNaN(price) || price < 0) throw new Error(t('Enter a valid price'));
       const { error } = await (supabase as any).from('boxes').insert({
         box_id: nextBoxId(),
         shipment_id: shipmentId,
@@ -158,7 +160,7 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
       queryClient.invalidateQueries({ queryKey: ['boxes', shipmentId] });
       setCustomItemName('');
       setCustomItemPrice('');
-      toast.success('Custom item added');
+      toast.success(t('Custom item added'));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -170,7 +172,7 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['boxes', shipmentId] });
-      toast.success('Box removed');
+      toast.success(t('Box removed'));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -179,8 +181,8 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
     mutationFn: async () => {
       if (!overrideBox) return;
       const price = parseFloat(overridePrice);
-      if (isNaN(price) || price < 0) throw new Error('Enter a valid price');
-      if (!overrideReason.trim()) throw new Error('Override reason is required');
+      if (isNaN(price) || price < 0) throw new Error(t('Enter a valid price'));
+      if (!overrideReason.trim()) throw new Error(t('Override reason is required'));
       const { error } = await (supabase as any).from('boxes').update({
         price_override: price,
         override_reason: overrideReason.trim(),
@@ -191,7 +193,7 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['boxes', shipmentId] });
       setOverrideBox(null);
-      toast.success('Price overridden');
+      toast.success(t('Price overridden'));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -215,7 +217,7 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
           {/* Standard Items */}
           {standardItems.length > 0 && (
             <div className="p-4 bg-muted rounded-lg space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quick Add Standard Items</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('Quick Add Standard Items')}</Label>
               <div className="flex flex-wrap gap-2">
                 {standardItems.map((item) => (
                   <Button
@@ -226,7 +228,7 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
                     disabled={addStandardItemMutation.isPending}
                   >
                     <Plus className="h-3 w-3 mr-1" />
-                    {item.name} — ${parseFloat(String(item.price)).toFixed(2)}
+                    {item.name} - ${parseFloat(String(item.price)).toFixed(2)}
                   </Button>
                 ))}
               </div>
@@ -235,12 +237,12 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
 
           {/* Custom Item (black themed) */}
           <div className="p-4 bg-foreground text-background rounded-lg space-y-2">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-background/70">Custom Item</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-background/70">{t('Custom Item')}</Label>
             <div className="flex items-end gap-3">
               <div className="space-y-1 flex-1">
                 <Input
                   className="bg-background text-foreground"
-                  placeholder="Item description"
+                  placeholder={t('Item description')}
                   value={customItemName}
                   onChange={(e) => setCustomItemName(e.target.value)}
                 />
@@ -251,7 +253,7 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
                   type="number"
                   step="0.01"
                   min="0"
-                  placeholder="Price"
+                  placeholder={t('Price')}
                   value={customItemPrice}
                   onChange={(e) => setCustomItemPrice(e.target.value)}
                 />
@@ -262,7 +264,7 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
                 onClick={() => addCustomItemMutation.mutate()}
                 disabled={addCustomItemMutation.isPending}
               >
-                <Plus className="h-4 w-4 mr-1" /> Add
+                <Plus className="h-4 w-4 mr-1" /> {t('Add')}
               </Button>
             </div>
           </div>
@@ -314,7 +316,7 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
               </div>
             )}
             <Button size="sm" onClick={() => addMutation.mutate()} disabled={addMutation.isPending} className="mb-0">
-              <Plus className="h-4 w-4 mr-1" /> Add Box
+              <Plus className="h-4 w-4 mr-1" /> {t('Add Box')}
             </Button>
           </div>
         </div>
@@ -323,12 +325,12 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Box ID</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Volume (ft³)</TableHead>
-            <TableHead>Rate</TableHead>
-            <TableHead>Price</TableHead>
-            <TableHead className="w-28">Actions</TableHead>
+            <TableHead>{t('Box ID')}</TableHead>
+            <TableHead>{t('Description')}</TableHead>
+            <TableHead>{t('Volume (ft³)')}</TableHead>
+            <TableHead>{t('Rate')}</TableHead>
+            <TableHead>{t('Price')}</TableHead>
+            <TableHead className="w-28">{t('Actions')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -341,13 +343,13 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
                   <div className="font-mono-id">{box.box_id}</div>
                   {scanCode && (
                     <div className="text-xs text-muted-foreground">
-                      Scan code: <span className="font-mono-id">{scanCode}</span>
+                      {t('Scan code:')} <span className="font-mono-id">{scanCode}</span>
                     </div>
                   )}
                 </TableCell>
                 <TableCell className="text-sm">
                   {isStdItem
-                    ? (box.notes || 'Standard Item')
+                    ? (box.notes || t('Standard Item'))
                     : `${parseFloat(String(box.length_in))} × ${parseFloat(String(box.width_in))} × ${parseFloat(String(box.height_in))} in`
                   }
                 </TableCell>
@@ -380,7 +382,7 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
-                          title="Override price"
+                          title={t('Override price')}
                           onClick={() => {
                             setOverrideBox(box);
                             setOverridePrice(String(box.final_price));
@@ -407,13 +409,13 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
           {boxes.length === 0 && (
             <TableRow>
               <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                No boxes yet. Add your first box above.
+                {t('No boxes yet. Add your first box above.')}
               </TableCell>
             </TableRow>
           )}
           {boxes.length > 0 && (
             <TableRow className="bg-muted/50 font-medium">
-              <TableCell>Total ({boxes.length} items)</TableCell>
+              <TableCell>{t('Total ({count} items)', { count: boxes.length })}</TableCell>
               <TableCell />
               <TableCell>{totalVolume > 0 ? totalVolume.toFixed(2) : '—'}</TableCell>
               <TableCell />
@@ -427,19 +429,21 @@ const BoxTable = ({ shipmentId, shipmentIdStr, serviceType, isFinalized }: BoxTa
       <Dialog open={!!overrideBox} onOpenChange={(open) => !open && setOverrideBox(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="font-heading">Override Price — {overrideBox?.box_id}</DialogTitle>
+            <DialogTitle className="font-heading">
+              {t('Override Price — {boxId}', { boxId: overrideBox?.box_id ?? '' })}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>New Price ($)</Label>
+              <Label>{t('New Price ($)')}</Label>
               <Input type="number" step="0.01" value={overridePrice} onChange={(e) => setOverridePrice(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Reason (required)</Label>
-              <Textarea value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} placeholder="Why is this price being overridden?" />
+              <Label>{t('Reason (required)')}</Label>
+              <Textarea value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} placeholder={t('Why is this price being overridden?')} />
             </div>
             <Button className="w-full" onClick={() => overrideMutation.mutate()} disabled={overrideMutation.isPending}>
-              {overrideMutation.isPending ? 'Saving...' : 'Save Override'}
+              {overrideMutation.isPending ? t('Saving...') : t('Save Override')}
             </Button>
           </div>
         </DialogContent>
