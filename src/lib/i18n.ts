@@ -193,6 +193,10 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "This saved address will autofill future shipments for this customer.":
       "Esta dirección guardada completará automáticamente futuros envíos para este cliente.",
     "No address saved yet": "Aún no hay una dirección guardada",
+    "No destination saved yet": "Todavía no hay una dirección de destino guardada",
+    "Saved Addresses": "Direcciones guardadas",
+    Origin: "Origen",
+    Destination: "Destino",
     "Shipping address saved": "Dirección de envío guardada",
     "Enter name, address line 1, and city to save a shipping address.":
       "Ingresa el nombre, la dirección línea 1 y la ciudad para guardar una dirección de envío.",
@@ -248,6 +252,8 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "Enter sender and receiver addresses": "Ingresa las direcciones del remitente y destinatario",
     "Sender address is loaded from the customer's saved shipping address when available.":
       "La dirección del remitente se carga desde la dirección de envío guardada del cliente cuando está disponible.",
+    "Receiver address is loaded from the customer's saved destination address when available.":
+      "La dirección del destinatario se carga desde la dirección de destino guardada del cliente cuando está disponible.",
     "Sender (Origin)": "Remitente (origen)",
     "Receiver (Destination)": "Destinatario (destino)",
     "Contact Name *": "Nombre de contacto *",
@@ -268,6 +274,11 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "Air Freight": "Transporte aéreo",
     "Shipment created!": "¡Envío creado!",
     "Shipment creation did not return an id": "La creación del envío no devolvió un id",
+    "Save updated stored details?": "¿Guardar los detalles almacenados actualizados?",
+    "You changed saved sender or destination details for this customer. Do you want to save these updates for future shipments too?":
+      "Cambiaste los detalles guardados del remitente o destino para este cliente. ¿Quieres guardar estas actualizaciones también para futuros envíos?",
+    "Use only for this shipment": "Usar solo para este envío",
+    "Save and continue": "Guardar y continuar",
     "Scan / Search": "Escanear / Buscar",
     "Scan a barcode or type a shipment ID, box ID, or manual scan code":
       "Escanea un código de barras o escribe un ID de envío, ID de caja o código manual",

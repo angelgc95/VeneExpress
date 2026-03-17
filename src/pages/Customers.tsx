@@ -19,44 +19,11 @@ import { format } from 'date-fns';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Customer } from '@/types/shipping';
 
-interface ShippingAddressForm {
-  name: string;
-  phone: string;
-  line1: string;
-  line2: string;
-  city: string;
-  state: string;
-  postal_code: string;
-  country: string;
-}
-
-const getShippingAddressForm = (customer: Customer): ShippingAddressForm => ({
-  name: customer.shipping_name || `${customer.first_name} ${customer.last_name}`.trim(),
-  phone: customer.shipping_phone || customer.phone || '',
-  line1: customer.shipping_line1 || '',
-  line2: customer.shipping_line2 || '',
-  city: customer.shipping_city || '',
-  state: customer.shipping_state || '',
-  postal_code: customer.shipping_postal_code || '',
-  country: customer.shipping_country || 'US',
-});
-
 const Customers = () => {
   const queryClient = useQueryClient();
   const { t, dateLocale } = useTranslation();
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [shippingForm, setShippingForm] = useState<ShippingAddressForm>({
-    name: '',
-    phone: '',
-    line1: '',
-    line2: '',
-    city: '',
-    state: '',
-    postal_code: '',
-    country: 'US',
-  });
   const [form, setForm] = useState({ first_name: '', last_name: '', phone: '', email: '', notes: '' });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [unlinkDialogOpen, setUnlinkDialogOpen] = useState(false);
@@ -153,39 +120,6 @@ const Customers = () => {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const updateShippingAddressMutation = useMutation({
-    mutationFn: async () => {
-      if (!editingCustomer) return;
-
-      const shippingName = shippingForm.name.trim() || `${editingCustomer.first_name} ${editingCustomer.last_name}`.trim();
-      if (!shippingName || !shippingForm.line1.trim() || !shippingForm.city.trim()) {
-        throw new Error(t('Enter name, address line 1, and city to save a shipping address.'));
-      }
-
-      const { error } = await (supabase as any)
-        .from('customers')
-        .update({
-          shipping_name: shippingName,
-          shipping_phone: shippingForm.phone.trim() || null,
-          shipping_line1: shippingForm.line1.trim(),
-          shipping_line2: shippingForm.line2.trim() || null,
-          shipping_city: shippingForm.city.trim(),
-          shipping_state: shippingForm.state.trim() || null,
-          shipping_postal_code: shippingForm.postal_code.trim() || null,
-          shipping_country: shippingForm.country.trim() || 'US',
-        })
-        .eq('id', editingCustomer.id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      setEditingCustomer(null);
-      toast.success(t('Shipping address saved'));
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   const filtered = customers.filter((c) => {
     const q = search.toLowerCase();
     return !q || `${c.first_name} ${c.last_name}`.toLowerCase().includes(q)
@@ -212,15 +146,16 @@ const Customers = () => {
     });
   };
 
-  const openShippingEditor = (customer: Customer) => {
-    setEditingCustomer(customer);
-    setShippingForm(getShippingAddressForm(customer));
-  };
-
   const getShippingAddressSummary = (customer: Customer) => {
     if (!customer.shipping_line1) return t('No address saved yet');
     const cityLine = [customer.shipping_city, customer.shipping_state].filter(Boolean).join(', ');
     return [customer.shipping_line1, cityLine || customer.shipping_country].filter(Boolean).join(' • ');
+  };
+
+  const getDestinationAddressSummary = (customer: Customer) => {
+    if (!customer.destination_line1) return t('No destination saved yet');
+    const cityLine = [customer.destination_city, customer.destination_state].filter(Boolean).join(', ');
+    return [customer.destination_line1, cityLine || customer.destination_country].filter(Boolean).join(' • ');
   };
 
   return (
@@ -314,9 +249,8 @@ const Customers = () => {
                 <TableHead>{t('Name')}</TableHead>
                 <TableHead>{t('Phone')}</TableHead>
                 <TableHead className="hidden md:table-cell">{t('Email')}</TableHead>
-                <TableHead className="hidden lg:table-cell">{t('Shipping Address')}</TableHead>
+                <TableHead className="hidden xl:table-cell">{t('Saved Addresses')}</TableHead>
                 <TableHead className="hidden md:table-cell">{t('Created')}</TableHead>
-                <TableHead className="w-24">{t('Actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -332,22 +266,20 @@ const Customers = () => {
                   <TableCell className="font-medium">{c.first_name} {c.last_name}</TableCell>
                   <TableCell className="font-mono-id text-sm">{c.phone || '—'}</TableCell>
                   <TableCell className="hidden md:table-cell text-sm">{c.email || '—'}</TableCell>
-                  <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                    {getShippingAddressSummary(c)}
+                  <TableCell className="hidden xl:table-cell text-sm text-muted-foreground">
+                    <div className="space-y-1">
+                      <p><span className="font-medium text-foreground">{t('Origin')}:</span> {getShippingAddressSummary(c)}</p>
+                      <p><span className="font-medium text-foreground">{t('Destination')}:</span> {getDestinationAddressSummary(c)}</p>
+                    </div>
                   </TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
                     {format(new Date(c.created_at), 'MMM d, yyyy', { locale: dateLocale })}
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" onClick={() => openShippingEditor(c)}>
-                      {t('Edit')}
-                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
                     <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     {search ? t('No customers match your search') : t('No customers yet')}
                   </TableCell>
@@ -383,63 +315,6 @@ const Customers = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <Dialog open={!!editingCustomer} onOpenChange={(open) => !open && setEditingCustomer(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="font-heading">{t('Edit shipping address')}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {editingCustomer && (
-              <div>
-                <p className="font-medium">{editingCustomer.first_name} {editingCustomer.last_name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {t('This saved address will autofill future shipments for this customer.')}
-                </p>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>{t('Contact Name *')}</Label>
-                <Input value={shippingForm.name} onChange={(e) => setShippingForm((current) => ({ ...current, name: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>{t('Phone')}</Label>
-                <Input value={shippingForm.phone} onChange={(e) => setShippingForm((current) => ({ ...current, phone: e.target.value }))} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>{t('Address Line 1 *')}</Label>
-              <Input value={shippingForm.line1} onChange={(e) => setShippingForm((current) => ({ ...current, line1: e.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('Address Line 2')}</Label>
-              <Input value={shippingForm.line2} onChange={(e) => setShippingForm((current) => ({ ...current, line2: e.target.value }))} />
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label>{t('City')} *</Label>
-                <Input value={shippingForm.city} onChange={(e) => setShippingForm((current) => ({ ...current, city: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>{t('State')}</Label>
-                <Input value={shippingForm.state} onChange={(e) => setShippingForm((current) => ({ ...current, state: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>{t('Postal Code')}</Label>
-                <Input value={shippingForm.postal_code} onChange={(e) => setShippingForm((current) => ({ ...current, postal_code: e.target.value }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>{t('Country')}</Label>
-                <Input value={shippingForm.country} onChange={(e) => setShippingForm((current) => ({ ...current, country: e.target.value }))} />
-              </div>
-            </div>
-            <Button className="w-full" onClick={() => updateShippingAddressMutation.mutate()} disabled={updateShippingAddressMutation.isPending}>
-              {updateShippingAddressMutation.isPending ? t('Saving...') : t('Save shipping address')}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

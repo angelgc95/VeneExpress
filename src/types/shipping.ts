@@ -12,6 +12,14 @@ export interface Customer {
   phone: string | null;
   email: string | null;
   notes: string | null;
+  destination_name: string | null;
+  destination_phone: string | null;
+  destination_line1: string | null;
+  destination_line2: string | null;
+  destination_city: string | null;
+  destination_state: string | null;
+  destination_postal_code: string | null;
+  destination_country: string | null;
   shipping_name: string | null;
   shipping_phone: string | null;
   shipping_line1: string | null;

@@ -154,6 +154,14 @@ export type Database = {
       customers: {
         Row: {
           created_at: string
+          destination_city: string | null
+          destination_country: string | null
+          destination_line1: string | null
+          destination_line2: string | null
+          destination_name: string | null
+          destination_phone: string | null
+          destination_postal_code: string | null
+          destination_state: string | null
           email: string | null
           first_name: string
           id: string
@@ -171,6 +179,14 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          destination_city?: string | null
+          destination_country?: string | null
+          destination_line1?: string | null
+          destination_line2?: string | null
+          destination_name?: string | null
+          destination_phone?: string | null
+          destination_postal_code?: string | null
+          destination_state?: string | null
           email?: string | null
           first_name: string
           id?: string
@@ -188,6 +204,14 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          destination_city?: string | null
+          destination_country?: string | null
+          destination_line1?: string | null
+          destination_line2?: string | null
+          destination_name?: string | null
+          destination_phone?: string | null
+          destination_postal_code?: string | null
+          destination_state?: string | null
           email?: string | null
           first_name?: string
           id?: string

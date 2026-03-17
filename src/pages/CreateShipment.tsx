@@ -8,6 +8,16 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -21,6 +31,31 @@ const emptyAddress = (country = 'US'): AddressForm => ({
   name: '', phone: '', line1: '', line2: '', city: '', state: '', postal_code: '', country
 });
 
+const normalizeAddress = (address: AddressForm, defaultCountry: string) => ({
+  name: address.name.trim(),
+  phone: address.phone.trim(),
+  line1: address.line1.trim(),
+  line2: address.line2.trim(),
+  city: address.city.trim(),
+  state: address.state.trim(),
+  postal_code: address.postal_code.trim(),
+  country: address.country.trim() || defaultCountry,
+});
+
+const addressesMatch = (current: AddressForm, stored: AddressForm, defaultCountry: string) => {
+  const left = normalizeAddress(current, defaultCountry);
+  const right = normalizeAddress(stored, defaultCountry);
+
+  return left.name === right.name
+    && left.phone === right.phone
+    && left.line1 === right.line1
+    && left.line2 === right.line2
+    && left.city === right.city
+    && left.state === right.state
+    && left.postal_code === right.postal_code
+    && left.country === right.country;
+};
+
 const getCustomerShippingAddress = (customer?: Customer | null): AddressForm => ({
   name: customer?.shipping_name || [customer?.first_name, customer?.last_name].filter(Boolean).join(' '),
   phone: customer?.shipping_phone || customer?.phone || '',
@@ -30,6 +65,17 @@ const getCustomerShippingAddress = (customer?: Customer | null): AddressForm => 
   state: customer?.shipping_state || '',
   postal_code: customer?.shipping_postal_code || '',
   country: customer?.shipping_country || 'US',
+});
+
+const getCustomerDestinationAddress = (customer?: Customer | null): AddressForm => ({
+  name: customer?.destination_name || '',
+  phone: customer?.destination_phone || '',
+  line1: customer?.destination_line1 || '',
+  line2: customer?.destination_line2 || '',
+  city: customer?.destination_city || '',
+  state: customer?.destination_state || '',
+  postal_code: customer?.destination_postal_code || '',
+  country: customer?.destination_country || 'VE',
 });
 
 const AddressFormFields = ({ addr, setAddr, label }: { addr: AddressForm; setAddr: (a: AddressForm) => void; label: string }) => {
@@ -87,6 +133,8 @@ const CreateShipment = () => {
   const [isNewCustomer, setIsNewCustomer] = useState(false);
   const [sender, setSender] = useState<AddressForm>(emptyAddress('US'));
   const [receiver, setReceiver] = useState<AddressForm>(emptyAddress('VE'));
+  const [saveCustomerAddresses, setSaveCustomerAddresses] = useState(false);
+  const [saveChangesDialogOpen, setSaveChangesDialogOpen] = useState(false);
   const [serviceType, setServiceType] = useState<ServiceType>('SEA');
 
   const { data: customers = [] } = useQuery({
@@ -105,7 +153,41 @@ const CreateShipment = () => {
   useEffect(() => {
     if (!selectedCustomer || isNewCustomer) return;
     setSender(getCustomerShippingAddress(selectedCustomer));
+    setReceiver(getCustomerDestinationAddress(selectedCustomer));
+    setSaveCustomerAddresses(false);
   }, [isNewCustomer, selectedCustomer]);
+
+  const hasStoredAddressEdits = () => {
+    if (!selectedCustomer || isNewCustomer) return false;
+
+    return !addressesMatch(sender, getCustomerShippingAddress(selectedCustomer), 'US')
+      || !addressesMatch(receiver, getCustomerDestinationAddress(selectedCustomer), 'VE');
+  };
+
+  const continueToReview = (shouldSaveCustomerAddresses: boolean) => {
+    setSaveCustomerAddresses(shouldSaveCustomerAddresses);
+    setSaveChangesDialogOpen(false);
+    setStep(3);
+  };
+
+  const handleAddressContinue = () => {
+    if (!sender.name.trim() || !sender.line1.trim() || !sender.city.trim()) {
+      toast.error(t('Complete sender address'));
+      return;
+    }
+
+    if (!receiver.name.trim() || !receiver.line1.trim() || !receiver.city.trim()) {
+      toast.error(t('Complete receiver address'));
+      return;
+    }
+
+    if (hasStoredAddressEdits()) {
+      setSaveChangesDialogOpen(true);
+      return;
+    }
+
+    continueToReview(isNewCustomer);
+  };
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -137,6 +219,7 @@ const CreateShipment = () => {
         p_receiver_postal_code: receiver.postal_code,
         p_receiver_country: receiver.country,
         p_service_type: serviceType,
+        p_save_customer_addresses: isNewCustomer || saveCustomerAddresses,
       });
       if (error) throw error;
       if (!data) throw new Error(t('Shipment creation did not return an id'));
@@ -232,20 +315,17 @@ const CreateShipment = () => {
           </CardHeader>
           <CardContent className="space-y-6">
             {!isNewCustomer && selectedCustomer && (
-              <p className="text-sm text-muted-foreground">
-                {t("Sender address is loaded from the customer's saved shipping address when available.")}
-              </p>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <p>{t("Sender address is loaded from the customer's saved shipping address when available.")}</p>
+                <p>{t("Receiver address is loaded from the customer's saved destination address when available.")}</p>
+              </div>
             )}
             <AddressFormFields addr={sender} setAddr={setSender} label="Sender (Origin)" />
             <Separator />
             <AddressFormFields addr={receiver} setAddr={setReceiver} label="Receiver (Destination)" />
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep(1)}>{t('Back')}</Button>
-              <Button onClick={() => {
-                if (!sender.name.trim() || !sender.line1.trim() || !sender.city.trim()) { toast.error(t('Complete sender address')); return; }
-                if (!receiver.name.trim() || !receiver.line1.trim() || !receiver.city.trim()) { toast.error(t('Complete receiver address')); return; }
-                setStep(3);
-              }}>{t('Continue')}</Button>
+              <Button onClick={handleAddressContinue}>{t('Continue')}</Button>
             </div>
           </CardContent>
         </Card>
@@ -299,6 +379,26 @@ const CreateShipment = () => {
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog open={saveChangesDialogOpen} onOpenChange={setSaveChangesDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading">{t('Save updated stored details?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('You changed saved sender or destination details for this customer. Do you want to save these updates for future shipments too?')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('Cancel')}</AlertDialogCancel>
+            <Button variant="outline" onClick={() => continueToReview(false)}>
+              {t('Use only for this shipment')}
+            </Button>
+            <AlertDialogAction onClick={() => continueToReview(true)}>
+              {t('Save and continue')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
