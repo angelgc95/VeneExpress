@@ -11,6 +11,7 @@ import { Shield, CheckCircle2, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { AppRole } from '@/types/shipping';
+import { getAppRolePriority, resolveHighestRole } from '@/lib/auth';
 
 interface ProfileRow {
   user_id: string;
@@ -57,8 +58,18 @@ const UserApprovals = () => {
 
   const users = profiles.map((p) => ({
     ...p,
-    role: roles.find((r) => r.user_id === p.user_id)?.role || null,
-    roleId: roles.find((r) => r.user_id === p.user_id)?.id || null,
+    ...(function resolveRoleState() {
+      const userRoles = roles
+        .filter((r) => r.user_id === p.user_id)
+        .sort((left, right) => getAppRolePriority(right.role) - getAppRolePriority(left.role));
+      const role = resolveHighestRole(userRoles.map((row) => row.role));
+      const roleId = userRoles.find((row) => row.role === role)?.id ?? userRoles[0]?.id ?? null;
+
+      return {
+        role,
+        roleId,
+      };
+    })(),
   }));
 
   const pendingCount = users.filter((u) => !u.approved).length;
@@ -80,13 +91,31 @@ const UserApprovals = () => {
 
   const changeRoleMutation = useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string; newRole: AppRole }) => {
-      const existingRole = roles.find((r) => r.user_id === userId);
-      if (existingRole) {
-        const { error } = await (supabase as any)
-          .from('user_roles')
-          .update({ role: newRole })
-          .eq('id', existingRole.id);
-        if (error) throw error;
+      const existingRoles = roles
+        .filter((r) => r.user_id === userId)
+        .sort((left, right) => getAppRolePriority(right.role) - getAppRolePriority(left.role));
+      const matchingRole = existingRoles.find((row) => row.role === newRole) ?? null;
+      const roleToKeep = matchingRole ?? existingRoles[0] ?? null;
+      const duplicateRoleIds = existingRoles
+        .filter((row) => row.id !== roleToKeep?.id)
+        .map((row) => row.id);
+
+      if (roleToKeep) {
+        if (roleToKeep.role !== newRole) {
+          const { error } = await (supabase as any)
+            .from('user_roles')
+            .update({ role: newRole })
+            .eq('id', roleToKeep.id);
+          if (error) throw error;
+        }
+
+        if (duplicateRoleIds.length > 0) {
+          const { error } = await (supabase as any)
+            .from('user_roles')
+            .delete()
+            .in('id', duplicateRoleIds);
+          if (error) throw error;
+        }
       } else {
         const { error } = await (supabase as any)
           .from('user_roles')

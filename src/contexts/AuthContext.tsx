@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { AppRole } from '@/types/shipping';
 import type { LanguageCode } from '@/lib/i18n';
+import { resolveHighestRole } from '@/lib/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -42,15 +43,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchUserData = async (userId: string) => {
     try {
-      const [roleRes, profileRes] = await Promise.all([
-        (supabase as any).from('user_roles').select('role').eq('user_id', userId).maybeSingle(),
+      const [rolesRes, profileRes] = await Promise.all([
+        (supabase as any).from('user_roles').select('role').eq('user_id', userId),
         (supabase as any).from('profiles').select('approved, preferred_language').eq('user_id', userId).maybeSingle(),
       ]);
-      if (roleRes.data) setRole(roleRes.data.role as AppRole);
+
+      if (rolesRes.error) {
+        console.error('Error fetching user roles:', rolesRes.error);
+      }
+
+      const nextRole = resolveHighestRole(
+        ((rolesRes.data as Array<{ role: AppRole }> | null) ?? []).map(({ role }) => role),
+      );
+      setRole(nextRole);
+
       if (profileRes.data) {
         setApproved(profileRes.data.approved === true);
         setLanguage((profileRes.data.preferred_language as LanguageCode) || 'en');
       } else {
+        setApproved(false);
         setLanguage('en');
       }
     } catch (e) {
