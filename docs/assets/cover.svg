@@ -1,0 +1,44 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="108" y1="72" x2="1108" y2="574" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#08131F"/>
+      <stop offset="1" stop-color="#0F2743"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="843" y1="130" x2="1068" y2="502" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5CC8FF"/>
+      <stop offset="1" stop-color="#26D09D"/>
+    </linearGradient>
+    <style>
+      .eyebrow { fill: #7DD3FC; font: 600 24px 'Inter', 'Segoe UI', sans-serif; letter-spacing: 0.24em; }
+      .title { fill: #F8FAFC; font: 700 70px 'Inter', 'Segoe UI', sans-serif; }
+      .body { fill: #C7D2E4; font: 500 30px 'Inter', 'Segoe UI', sans-serif; }
+      .chip { fill: rgba(15, 23, 42, 0.6); stroke: rgba(148, 163, 184, 0.32); }
+      .chipText { fill: #E2E8F0; font: 600 22px 'Inter', 'Segoe UI', sans-serif; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="630" rx="36" fill="url(#bg)"/>
+  <circle cx="1000" cy="181" r="166" fill="url(#accent)" fill-opacity="0.14"/>
+  <circle cx="1031" cy="470" r="217" fill="#0B1628" fill-opacity="0.76"/>
+  <path d="M872 137C872 120.431 885.431 107 902 107H1099C1115.57 107 1129 120.431 1129 137V342C1129 358.569 1115.57 372 1099 372H902C885.431 372 872 358.569 872 342V137Z" fill="#08111F" stroke="rgba(148, 163, 184, 0.24)"/>
+  <path d="M914 165H1088" stroke="#334155" stroke-width="18" stroke-linecap="round"/>
+  <path d="M914 212H1088" stroke="#334155" stroke-width="18" stroke-linecap="round"/>
+  <path d="M914 259H1049" stroke="#22C55E" stroke-width="18" stroke-linecap="round"/>
+  <path d="M914 306H1014" stroke="#38BDF8" stroke-width="18" stroke-linecap="round"/>
+  <rect x="826" y="407" width="206" height="132" rx="28" fill="#08111F" stroke="rgba(148, 163, 184, 0.24)"/>
+  <path d="M858 462H914" stroke="#38BDF8" stroke-width="18" stroke-linecap="round"/>
+  <path d="M858 505H990" stroke="#22C55E" stroke-width="18" stroke-linecap="round"/>
+  <path d="M1041 451L1085 495L1041 539" stroke="#5CC8FF" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <text x="90" y="140" class="eyebrow">OPERATIONS PLATFORM</text>
+  <text x="90" y="238" class="title">VeneExpress</text>
+  <text x="90" y="294" class="body">Shipment intake, customer tracking, and invoicing</text>
+  <text x="90" y="336" class="body">for day-to-day logistics operations.</text>
+
+  <rect x="90" y="404" width="232" height="58" rx="29" class="chip"/>
+  <rect x="340" y="404" width="206" height="58" rx="29" class="chip"/>
+  <rect x="564" y="404" width="234" height="58" rx="29" class="chip"/>
+  <text x="126" y="441" class="chipText">Public tracking</text>
+  <text x="384" y="441" class="chipText">Supabase</text>
+  <text x="599" y="441" class="chipText">Operational billing</text>
+</svg>
